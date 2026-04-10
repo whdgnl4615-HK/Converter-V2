@@ -92,6 +92,12 @@ export function applyTransform(val, tf) {
   if (tf === 'title')                return s.replace(/\b\w/g, c => c.toUpperCase())
   if (tf === 'trim')                 return s.trim()
 
+  // truncate:N — keep first N characters
+  if (tf.startsWith('truncate:')) {
+    const n = parseInt(tf.slice(9), 10)
+    return isNaN(n) ? s : s.slice(0, n)
+  }
+
   // Special character removals
   if (tf === 'strip_special')        return s.replace(/[^a-zA-Z0-9 \-_]/g, '')
   if (tf === 'strip_all_special')    return s.replace(/[^a-zA-Z0-9]/g, '')
