@@ -1,5 +1,7 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useLang } from '../contexts/LangContext'
+import { processSyncCommand } from '../lib/claudeApi'
+import { applyTransforms } from '../lib/converter'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -403,6 +405,8 @@ function DiffCell({ diff }) {
 }
 
 // ─── Main SyncPage ─────────────────────────────────────────────────────────────
+const syncStyles = `@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`
+
 export default function SyncPage() {
   const { lang } = useLang()
 
@@ -420,6 +424,13 @@ export default function SyncPage() {
 
   // UI
   const [loading, setLoading]       = useState(false)
+
+  // AI chat
+  const [aiInput, setAiInput]           = useState('')
+  const [aiLoading, setAiLoading]       = useState(false)
+  const [aiMsg, setAiMsg]               = useState('')
+  const [aiPreview, setAiPreview]       = useState(null)  // {understanding, changes, previewRows}
+  const [aiPendingChanges, setAiPendingChanges] = useState(null)
   const [error, setError]           = useState('')
   const [filter, setFilter]         = useState('all') // all | diff | missing | ok
   const [searchQ, setSearchQ]       = useState('')
@@ -451,6 +462,92 @@ export default function SyncPage() {
     } catch (e) {
       setError('플랫폼 파일 읽기 실패: ' + e.message)
     }
+  }
+
+  // ── AI command ──
+  async function handleAiCommand() {
+    if (!aiInput.trim() || !platRows?.length) return
+    setAiLoading(true)
+    setAiMsg('')
+    setAiPreview(null)
+    setAiPendingChanges(null)
+    try {
+      const platColumns = Object.keys(platRows[0] || {})
+      const platSample  = platRows[0] || {}
+      // Build n41 sample from map
+      const n41Sample = n41Map ? Object.fromEntries([...n41Map.entries()].slice(0, 3).map(([k, v]) => [k, v])) : {}
+      const result = await processSyncCommand(aiInput, platform, platColumns, n41Sample, platSample)
+
+      if (!result.changes?.length) {
+        setAiMsg('❌ 변경할 컬럼을 찾지 못했어요. 더 구체적으로 말씀해주세요.')
+        return
+      }
+
+      // Build preview rows (first 5)
+      const previewRows = platRows.slice(0, 5).map(row => {
+        const updated = { ...row }
+        for (const ch of result.changes) {
+          if (!ch.platCol || !platColumns.includes(ch.platCol)) continue
+          if (ch.sourceType === 'n41_field' && n41Map) {
+            // Find matching N41 row by style
+            const styleVal = String(row['Vendor Style Number'] || row['Style Number'] || row['Handle'] || '').toUpperCase()
+            const n41Row = n41Map.get([...n41Map.keys()].find(k => k.startsWith(styleVal + '||')) || '') 
+                        || [...n41Map.values()].find(v => v.style === styleVal)
+            if (n41Row && ch.n41Field && n41Row[ch.n41Field] !== undefined) {
+              let val = String(n41Row[ch.n41Field])
+              if (ch.transform) val = applyTransforms(val, ch.transform)
+              updated[ch.platCol] = val
+            }
+          } else if (ch.sourceType === 'transform') {
+            updated[ch.platCol] = applyTransforms(String(row[ch.platCol] ?? ''), ch.transform)
+          } else if (ch.sourceType === 'fixed') {
+            updated[ch.platCol] = ch.fixedValue || ''
+          }
+        }
+        return { original: row, updated }
+      })
+
+      setAiPreview({ understanding: result.understanding, changes: result.changes, previewNote: result.previewNote, previewRows })
+      setAiPendingChanges(result.changes)
+      setAiMsg(`✨ ${result.understanding}`)
+    } catch (e) {
+      setAiMsg('❌ ' + e.message)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  // ── Apply AI changes to all rows ──
+  function applyAiChanges() {
+    if (!aiPendingChanges || !platRows) return
+    const platColumns = Object.keys(platRows[0] || {})
+    const newRows = platRows.map(row => {
+      const updated = { ...row }
+      for (const ch of aiPendingChanges) {
+        if (!ch.platCol || !platColumns.includes(ch.platCol)) continue
+        if (ch.sourceType === 'n41_field' && n41Map) {
+          const styleVal = String(row['Vendor Style Number'] || row['Style Number'] || row['Handle'] || '').toUpperCase()
+          const n41Row = n41Map.get([...n41Map.keys()].find(k => k.startsWith(styleVal + '||')) || '')
+                      || [...n41Map.values()].find(v => v.style === styleVal)
+          if (n41Row && ch.n41Field && n41Row[ch.n41Field] !== undefined) {
+            let val = String(n41Row[ch.n41Field])
+            if (ch.transform) val = applyTransforms(val, ch.transform)
+            updated[ch.platCol] = val
+          }
+        } else if (ch.sourceType === 'transform') {
+          updated[ch.platCol] = applyTransforms(String(row[ch.platCol] ?? ''), ch.transform)
+        } else if (ch.sourceType === 'fixed') {
+          updated[ch.platCol] = ch.fixedValue || ''
+        }
+      }
+      return updated
+    })
+    // Update platRows with new data and re-run diff
+    setPlatRows(newRows)
+    setAiPreview(null)
+    setAiPendingChanges(null)
+    setAiInput('')
+    setAiMsg(`✅ ${aiPendingChanges.length}개 컬럼 전체 적용 완료 — 비교 다시 실행해주세요`)
   }
 
   // ── Run comparison ──
@@ -510,6 +607,7 @@ export default function SyncPage() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
+      <style>{syncStyles}</style>
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 flex-shrink-0"
         style={{ background: 'var(--s1)', borderBottom: '1px solid var(--border)' }}>
@@ -669,10 +767,136 @@ export default function SyncPage() {
               ⬇ {stats.accepted}개 수정 적용 후 export
             </button>
           )}
+
+          {/* AI Chat */}
+          {platRows && (
+            <div className="flex flex-col gap-2">
+              <div className="text-xs mono uppercase" style={{ color: 'var(--text3)', letterSpacing: '1.5px' }}>
+                ✨ AI 직접 요청
+              </div>
+              <textarea
+                value={aiInput}
+                onChange={e => setAiInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !aiLoading) { e.preventDefault(); handleAiCommand() }}}
+                placeholder={"예: FashionGo seller ID를 N41 style#로 바꿔줘\n예: color 컬럼 대문자로 바꿔줘\n예: size에서 special character 제거해줘"}
+                rows={3}
+                className="w-full rounded-lg px-3 py-2 text-xs mono outline-none resize-none"
+                style={{ background: 'var(--s2)', border: '1px solid var(--border2)', color: 'var(--text)', lineHeight: 1.6 }}
+                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border2)'}
+              />
+              <button onClick={handleAiCommand} disabled={aiLoading || !aiInput.trim()}
+                className="w-full py-2 rounded-lg text-xs mono font-bold transition-all"
+                style={{
+                  background: aiLoading ? 'var(--s2)' : 'var(--accent-glow)',
+                  border: '1px solid var(--accent)',
+                  color: aiLoading ? 'var(--text3)' : 'var(--accent)',
+                  opacity: !aiInput.trim() ? 0.5 : 1,
+                }}>
+                {aiLoading
+                  ? <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span> AI 분석 중…</>
+                  : '→ AI 실행 (Enter)'}
+              </button>
+              {aiMsg && (
+                <div className="text-xs mono px-2 py-1.5 rounded-lg"
+                  style={{
+                    color: aiMsg.startsWith('❌') ? 'var(--red)' : aiMsg.startsWith('✅') ? 'var(--green)' : 'var(--accent)',
+                    background: aiMsg.startsWith('❌') ? 'rgba(247,108,108,0.08)' : aiMsg.startsWith('✅') ? 'rgba(61,214,140,0.08)' : 'var(--accent-glow)',
+                    border: `1px solid ${aiMsg.startsWith('❌') ? 'rgba(247,108,108,0.2)' : aiMsg.startsWith('✅') ? 'rgba(61,214,140,0.2)' : 'rgba(124,106,247,0.2)'}`,
+                  }}>
+                  {aiMsg}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right panel: results */}
         <div className="flex-1 overflow-hidden flex flex-col">
+          {/* AI Preview Panel */}
+          {aiPreview && (
+            <div className="flex-shrink-0 mx-4 mt-3 rounded-xl overflow-hidden"
+              style={{ border: '1px solid var(--accent)', background: 'rgba(124,106,247,0.04)' }}>
+              <div className="px-4 py-2.5 flex items-center justify-between"
+                style={{ background: 'rgba(124,106,247,0.1)', borderBottom: '1px solid rgba(124,106,247,0.2)' }}>
+                <div>
+                  <span className="text-xs mono font-bold" style={{ color: 'var(--accent)' }}>
+                    ✨ AI 미리보기 (상위 5행)
+                  </span>
+                  <span className="text-xs mono ml-2" style={{ color: 'var(--text3)' }}>
+                    {aiPreview.understanding}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={applyAiChanges}
+                    className="px-3 py-1 rounded-lg text-xs mono font-bold"
+                    style={{ background: 'var(--accent)', color: 'white' }}>
+                    ✅ 전체 적용 ({platRows?.length}행)
+                  </button>
+                  <button onClick={() => { setAiPreview(null); setAiPendingChanges(null) }}
+                    style={{ color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>×</button>
+                </div>
+              </div>
+              {/* Changes summary */}
+              <div className="px-4 py-2 flex flex-wrap gap-2" style={{ borderBottom: '1px solid rgba(124,106,247,0.15)' }}>
+                {aiPreview.changes.map((ch, i) => (
+                  <div key={i} className="text-xs mono px-2 py-1 rounded"
+                    style={{ background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text2)' }}>
+                    <span style={{ color: plat.color }}>{ch.platCol}</span>
+                    <span style={{ color: 'var(--text3)' }}> ← </span>
+                    <span style={{ color: 'var(--accent)' }}>
+                      {ch.sourceType === 'n41_field' ? `N41.${ch.n41Field}` : ch.sourceType === 'fixed' ? `"${ch.fixedValue}"` : ch.transform}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {/* Preview table */}
+              <div className="overflow-x-auto" style={{ maxHeight: 200 }}>
+                <table className="text-xs w-full" style={{ borderCollapse: 'collapse' }}>
+                  <thead style={{ position: 'sticky', top: 0 }}>
+                    <tr style={{ background: 'rgba(124,106,247,0.1)', borderBottom: '1px solid rgba(124,106,247,0.2)' }}>
+                      {aiPreview.changes.map(ch => (
+                        <th key={ch.platCol} className="px-3 py-1.5 text-left mono whitespace-nowrap"
+                          style={{ color: 'var(--text3)', fontSize: 10 }}>
+                          {ch.platCol}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aiPreview.previewRows.map((row, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid rgba(44,44,66,0.3)' }}>
+                        {aiPreview.changes.map(ch => {
+                          const orig = String(row.original[ch.platCol] ?? '')
+                          const upd  = String(row.updated[ch.platCol] ?? '')
+                          const changed = orig !== upd
+                          return (
+                            <td key={ch.platCol} className="px-3 py-1.5 mono whitespace-nowrap"
+                              style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {changed ? (
+                                <div className="flex flex-col gap-0.5">
+                                  <span style={{ color: 'var(--red)', textDecoration: 'line-through', fontSize: 10 }}>{orig || '—'}</span>
+                                  <span style={{ color: 'var(--green)' }}>{upd || '—'}</span>
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--text3)' }}>{orig || '—'}</span>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {aiPreview.previewNote && (
+                <div className="px-4 py-2 text-xs mono" style={{ color: 'var(--text3)', borderTop: '1px solid rgba(124,106,247,0.15)' }}>
+                  ℹ️ {aiPreview.previewNote}
+                </div>
+              )}
+            </div>
+          )}
+
           {!results ? (
             <div className="flex-1 flex items-center justify-center flex-col gap-3"
               style={{ color: 'var(--text3)' }}>
