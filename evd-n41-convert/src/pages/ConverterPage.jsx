@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useLang } from '../contexts/LangContext'
 import { useTemplates } from '../hooks/useTemplates'
 import { MODULES, SCHEMAS, buildInitialMapping } from '../lib/n41Schema'
 import { parseUploadedFile, getSourceColumns, convertRows, downloadXlsx, resolveValue } from '../lib/converter'
+import { suggestAllTransforms } from '../lib/claudeApi'
 import MappingTable from '../components/mapping/MappingTable'
 import TemplatePanel from '../components/mapping/TemplatePanel'
 
@@ -10,30 +11,35 @@ export default function ConverterPage({ module: moduleKey }) {
   const { T, lang } = useLang()
   const { templates, fetchTemplates, saveTemplate, deleteTemplate, setDefault, getDefaultTemplate } = useTemplates(moduleKey)
 
-  const [step, setStep] = useState(1) // 1=upload 2=mapping 3=preview
-  const [evdData, setEvdData] = useState([])
+  const [step, setStep]                   = useState(1)
+  const [evdData, setEvdData]             = useState([])
   const [sourceColumns, setSourceColumns] = useState([])
-  const [mapping, setMapping] = useState(() => buildInitialMapping(moduleKey))
-  const [dragging, setDragging] = useState(false)
-  const [uploadErr, setUploadErr] = useState('')
-  const [converting, setConverting] = useState(false)
-  const [convertMsg, setConvertMsg] = useState('')
+  const [mapping, setMapping]             = useState(() => buildInitialMapping(moduleKey))
+  const [dragging, setDragging]           = useState(false)
+  const [uploadErr, setUploadErr]         = useState('')
+  const [converting, setConverting]       = useState(false)
+  const [convertMsg, setConvertMsg]       = useState('')
   const [showTemplates, setShowTemplates] = useState(false)
   const [activeTemplateName, setActiveTemplateName] = useState('')
-  const [previewRows, setPreviewRows] = useState([])
+  const [previewRows, setPreviewRows]     = useState([])
+
+  // AI cleanse state
+  const [aiCleansing, setAiCleansing]       = useState(false)
+  const [aiCleanseMsg, setAiCleanseMsg]     = useState('')
+  const [cleanseResults, setCleanseResults] = useState([]) // [{n41Col, suggested_tf, reason, priority}]
+  const [appliedCleanses, setAppliedCleanses] = useState(new Set())
+  const [showCleansePanel, setShowCleansePanel] = useState(false)
 
   const moduleMeta = MODULES.find(m => m.key === moduleKey)
-  const schema = SCHEMAS[moduleKey] || {}
 
-  // Reset when module changes
   useEffect(() => {
     setStep(1); setEvdData([]); setSourceColumns([])
     setMapping(buildInitialMapping(moduleKey))
     setActiveTemplateName(''); setUploadErr(''); setConvertMsg('')
+    setCleanseResults([]); setAppliedCleanses(new Set()); setShowCleansePanel(false)
     fetchTemplates()
   }, [moduleKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-load default template when templates load
   useEffect(() => {
     if (templates.length > 0 && !activeTemplateName) {
       const def = getDefaultTemplate()
@@ -41,7 +47,6 @@ export default function ConverterPage({ module: moduleKey }) {
     }
   }, [templates]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Build preview when reaching step 3
   useEffect(() => {
     if (step === 3 && evdData.length) {
       const rows = evdData.slice(0, 5).map((row, i) => {
@@ -63,7 +68,6 @@ export default function ConverterPage({ module: moduleKey }) {
       const data = await parseUploadedFile(file)
       setEvdData(data)
       setSourceColumns(getSourceColumns(data))
-      // Apply default template mapping if available
       const def = getDefaultTemplate()
       if (def) { setMapping(def.mapping); setActiveTemplateName(def.name) }
       setStep(2)
@@ -77,8 +81,7 @@ export default function ConverterPage({ module: moduleKey }) {
   }
 
   async function handleSaveTemplate(name, mappingOverride) {
-    const m = mappingOverride || mapping
-    await saveTemplate(name, m)
+    await saveTemplate(name, mappingOverride || mapping)
   }
 
   function handleLoadTemplate(tpl) {
@@ -98,8 +101,7 @@ export default function ConverterPage({ module: moduleKey }) {
   }
 
   function handleConvert() {
-    setConverting(true)
-    setConvertMsg('')
+    setConverting(true); setConvertMsg('')
     try {
       const rows = convertRows(evdData, mapping, moduleKey)
       downloadXlsx(rows, mapping, moduleKey)
@@ -111,12 +113,49 @@ export default function ConverterPage({ module: moduleKey }) {
     }
   }
 
+  // ── AI Cleanse ──
+  async function handleAICleanse() {
+    setAiCleansing(true)
+    setAiCleanseMsg('')
+    setCleanseResults([])
+    try {
+      const sampleRow = evdData[0] || {}
+      const results = await suggestAllTransforms(mapping, sourceColumns, sampleRow)
+      setCleanseResults(results)
+      setShowCleansePanel(true)
+      const high = results.filter(r => r.priority === 'high').length
+      setAiCleanseMsg(`✨ ${results.length}개 제안 (${high}개 중요)`)
+    } catch (e) {
+      setAiCleanseMsg('❌ ' + e.message)
+    } finally {
+      setAiCleansing(false)
+    }
+  }
+
+  function applyOneCleanse(n41Col, tf) {
+    setMapping(prev => ({
+      ...prev,
+      [n41Col]: { ...prev[n41Col], tf }
+    }))
+    setAppliedCleanses(prev => new Set([...prev, n41Col]))
+  }
+
+  function applyAllCleanses() {
+    const updates = {}
+    for (const r of cleanseResults) {
+      if (!appliedCleanses.has(r.n41Col)) {
+        updates[r.n41Col] = { ...mapping[r.n41Col], tf: r.suggested_tf }
+      }
+    }
+    setMapping(prev => ({ ...prev, ...updates }))
+    setAppliedCleanses(new Set(cleanseResults.map(r => r.n41Col)))
+    setAiCleanseMsg(`✅ ${cleanseResults.length}개 전체 적용 완료`)
+  }
+
   const activeCols = Object.keys(mapping).filter(c => mapping[c]?.src !== '')
 
-  // Unique count: find the mapped source column for order/customer key fields
   const uniqueCount = (() => {
     if (!evdData.length) return 0
-    // Try to use the mapped source for common key columns
     const keyFields = ['orderNo', 'poNo', 'customer', 'index']
     for (const field of keyFields) {
       const src = mapping[field]?.src
@@ -124,9 +163,14 @@ export default function ConverterPage({ module: moduleKey }) {
         return new Set(evdData.map(r => r[src])).size
       }
     }
-    // Fallback: count all rows as unique
     return evdData.length
   })()
+
+  const PRIORITY_COLOR = {
+    high:   { color: 'var(--red)',    bg: 'rgba(247,108,108,0.1)',  label: '🔴 중요' },
+    medium: { color: 'var(--orange)', bg: 'rgba(247,163,92,0.1)',   label: '🟡 보통' },
+    low:    { color: 'var(--text3)',  bg: 'rgba(255,255,255,0.03)', label: '⚪ 낮음' },
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -163,7 +207,6 @@ export default function ConverterPage({ module: moduleKey }) {
           ))}
         </div>
 
-        {/* Template button (step 2+) */}
         {step >= 2 && (
           <button onClick={() => setShowTemplates(!showTemplates)}
             className="px-3 py-1.5 rounded-lg text-xs mono transition-all"
@@ -180,7 +223,6 @@ export default function ConverterPage({ module: moduleKey }) {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Main area */}
         <div className="flex-1 overflow-y-auto p-6">
 
           {/* ── STEP 1: Upload ── */}
@@ -233,6 +275,7 @@ export default function ConverterPage({ module: moduleKey }) {
                 mapping={mapping}
                 sourceColumns={sourceColumns}
                 onMappingChange={updateMappingCol}
+                evdData={evdData}
               />
               <div className="flex justify-between mt-4">
                 <button onClick={() => setStep(1)}
@@ -256,12 +299,79 @@ export default function ConverterPage({ module: moduleKey }) {
                 <h2 className="text-sm mono font-bold uppercase" style={{color:'var(--text2)',letterSpacing:'2px'}}>
                   {T.converter.previewTitle}
                 </h2>
-                <button onClick={() => setStep(3)}
-                  className="px-3 py-1.5 rounded-lg text-xs mono transition-all"
-                  style={{border:'1px solid var(--border2)',color:'var(--text2)'}}>
-                  {T.converter.refresh}
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* AI Cleanse button */}
+                  <button onClick={handleAICleanse} disabled={aiCleansing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs mono font-bold transition-all"
+                    style={{
+                      background: aiCleansing ? 'var(--s2)' : 'var(--accent-glow)',
+                      border: '1px solid var(--accent)',
+                      color: aiCleansing ? 'var(--text3)' : 'var(--accent)',
+                      cursor: aiCleansing ? 'wait' : 'pointer',
+                    }}>
+                    {aiCleansing
+                      ? <><span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span> AI 분석 중…</>
+                      : <>✨ AI 데이터 클렌징 제안</>
+                    }
+                  </button>
+                  {aiCleanseMsg && (
+                    <span className="text-xs mono" style={{color: aiCleanseMsg.startsWith('❌') ? 'var(--red)' : 'var(--green)'}}>
+                      {aiCleanseMsg}
+                    </span>
+                  )}
+                </div>
               </div>
+
+              {/* AI Cleanse Panel */}
+              {showCleansePanel && cleanseResults.length > 0 && (
+                <div className="rounded-xl mb-4 overflow-hidden" style={{border:'1px solid var(--accent)',background:'rgba(124,106,247,0.05)'}}>
+                  <div className="px-4 py-3 flex items-center justify-between"
+                    style={{background:'rgba(124,106,247,0.1)',borderBottom:'1px solid rgba(124,106,247,0.2)'}}>
+                    <span className="text-xs mono font-bold" style={{color:'var(--accent)'}}>
+                      ✨ AI 클렌징 제안 — {cleanseResults.length}개
+                    </span>
+                    <div className="flex gap-2">
+                      <button onClick={applyAllCleanses}
+                        className="px-3 py-1 rounded-lg text-xs mono font-bold"
+                        style={{background:'var(--accent)',color:'white'}}>
+                        전체 적용
+                      </button>
+                      <button onClick={() => setShowCleansePanel(false)}
+                        style={{color:'var(--text3)',background:'none',border:'none',cursor:'pointer',fontSize:'16px'}}>×</button>
+                    </div>
+                  </div>
+                  <div className="divide-y" style={{borderColor:'rgba(124,106,247,0.15)'}}>
+                    {cleanseResults.map((r, i) => {
+                      const p = PRIORITY_COLOR[r.priority] || PRIORITY_COLOR.low
+                      const applied = appliedCleanses.has(r.n41Col)
+                      return (
+                        <div key={i} className="px-4 py-3 flex items-start gap-4"
+                          style={{background: applied ? 'rgba(61,214,140,0.04)' : 'transparent'}}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs mono font-bold" style={{color:'var(--accent)'}}>{r.n41Col}</span>
+                              <span className="text-xs mono px-1.5 py-0.5 rounded" style={{background:p.bg,color:p.color}}>{p.label}</span>
+                              {applied && <span className="text-xs mono" style={{color:'var(--green)'}}>✓ 적용됨</span>}
+                            </div>
+                            <div className="text-xs mb-1" style={{color:'var(--text2)'}}>{r.reason}</div>
+                            <div className="text-xs mono px-2 py-1 rounded inline-block"
+                              style={{background:'var(--s2)',color:'var(--orange)',border:'1px solid var(--border)'}}>
+                              {r.suggested_tf}
+                            </div>
+                          </div>
+                          {!applied && (
+                            <button onClick={() => applyOneCleanse(r.n41Col, r.suggested_tf)}
+                              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs mono font-bold transition-all"
+                              style={{background:'var(--accent-glow)',border:'1px solid var(--accent)',color:'var(--accent)'}}>
+                              적용
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Stats */}
               <div className="grid grid-cols-3 gap-3 mb-4">
@@ -294,7 +404,8 @@ export default function ConverterPage({ module: moduleKey }) {
                       {previewRows.map((row, i) => (
                         <tr key={i} style={{borderBottom:'1px solid rgba(44,44,66,0.4)'}}>
                           {Object.values(row).map((val, j) => (
-                            <td key={j} className="px-3 py-1.5 mono whitespace-nowrap" style={{color:'var(--text2)',maxWidth:'160px',overflow:'hidden',textOverflow:'ellipsis'}}>
+                            <td key={j} className="px-3 py-1.5 mono whitespace-nowrap"
+                              style={{color:'var(--text2)',maxWidth:'160px',overflow:'hidden',textOverflow:'ellipsis'}}>
                               {String(val)}
                             </td>
                           ))}
@@ -350,12 +461,16 @@ export default function ConverterPage({ module: moduleKey }) {
                 onDelete={deleteTemplate}
                 onSetDefault={setDefault}
                 onExport={handleExportTemplates}
-                onImport={() => {}} // handled inside TemplatePanel
+                onImport={() => {}}
               />
             </div>
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+      `}</style>
     </div>
   )
 }
