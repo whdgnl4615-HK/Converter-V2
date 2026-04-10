@@ -322,8 +322,11 @@ async function exportFixed(platform, rows, results, fileName) {
     return updated
   })
 
+  // Preserve original column order from source file
+  const originalCols = rows.length > 0 ? Object.keys(rows[0]) : []
   const wb = XLSX.utils.book_new()
-  const ws = XLSX.utils.json_to_sheet(updatedRows)
+  const ws = XLSX.utils.json_to_sheet(updatedRows, { header: originalCols })
+  ws['!cols'] = originalCols.map(c => ({ wch: Math.max(String(c).length + 2, 10) }))
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
   const d = new Date()
   const ds = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
