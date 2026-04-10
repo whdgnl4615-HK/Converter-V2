@@ -270,51 +270,8 @@ export function buildInitialMapping(moduleKey) {
   return mapping
 }
 
-// ─── Desktop N41 Column Definitions ──────────────────────────────────────────
-// These are the exact column names from N41 Desktop import templates
+// ─── Desktop & Cloud Column Maps ─────────────────────────────────────────────
 
-export const DESKTOP_COLUMNS = {
-  sales_order: [
-    'orderno','orderDate','startDate','customer','type','shipTo','billTo',
-    'division','PO','releaseNo','shipVia','term','memo','houseMemo',
-    'bulkOrder','box','currency','orderDecision','discountRate','memoCode',
-    'void','UpdateUser','UpdateTime','routingGuide','priceLevel','shipToStore',
-    'dc','paymentcode','freight','misc','taxable1','taxable2','line','style',
-    'color','warehouse','cancelDate','status','sizecategory','size','quantity',
-    'price','Memo_det','userName','userTime','cancelReason','season','promotion',
-    'salesrep1','comrate1','comrate2','TradeShow','bundle','numofnumdle','check_skip',
-  ],
-  purchase_order: [
-    'pono','cut_po','processType','orderDate','startDate','cancelDate','etaDate',
-    'shipdate','vendor','division','warehouse','status','shipvia','user1','user2',
-    'user3','user4','line','style','color','Sizecat','prepack','unit1','unit2',
-    'unit3','unit4','unit5','unit6','unit7','unit8','unit9','unit10','unit11',
-    'unit12','unit13','unit14','unit15','unitSum','price',
-  ],
-  style: [
-    'style','color','type','rawMatType','Binlocation','Descript','division',
-    'Subdivision','Category','SubCategory','Grp','Season','Sizecat','Cost',
-    'Price1','memo','availabledate','bundle','cost1','cost2','cost3','price2',
-    'price3','price4','price5','fabcontent','fabricType','ldp','weight',
-    'sgtRetailPrice','uom','designer','coo','warehouse','startSellDate',
-    'vendor1','fob','vendorpart1','processtype','impCat','user1~user9','reference1',
-  ],
-  customer: [
-    'code','Name','addr1','addr2','city','state','zip','country','contact','phone',
-    'Bill to addr1','Bill to addr2','Bill to city','Bill to state','Bill to zip',
-    'Bill to country','phone1','phone2','fax1','fax2','contact1','contact2',
-    'title1','title2','email1','email2','term','shipvia','status','division',
-    'priceLevel','Paymentcode','type','Sales Rep 1','Sales Rep 1 Rate',
-    'Sales Rep 2','Sales Rep 2 Rate','warehouse','customerpriority','memo',
-  ],
-  inventory: [
-    'Style #','Color','WAREHOUSE','Unit1','Unit2','Unit3','Unit4','Unit5',
-    'Unit6','Unit7','Unit8','Unit9','Unit10','Unit11','Unit12','Unit13',
-    'Unit14','Unit15','Total',
-  ],
-}
-
-// Desktop schema - maps N41 schema keys → Desktop column names
 export const DESKTOP_COL_MAP = {
   sales_order: {
     index: 'line', orderNo: 'orderno', orderDate: 'orderDate',
@@ -333,8 +290,9 @@ export const DESKTOP_COL_MAP = {
     size: 'size', quantity: 'quantity', price: 'price', memoDet: 'Memo_det',
     userName: 'userName', userTime: 'userTime', cancelReason: 'cancelReason',
     season: 'season', promotion: 'promotion', salesRep1: 'salesrep1',
-    comRate1: 'comrate1', comRate2: 'comrate2', tradeShow: 'TradeShow',
-    bundle: 'bundle', numOfBundle: 'numofnumdle', checkSkip: 'check_skip',
+    comRate1: 'comrate1', salesRep2: 'salesrep2', comRate2: 'comrate2',
+    tradeShow: 'TradeShow', bundle: 'bundle', numOfBundle: 'numofnumdle',
+    checkSkip: 'check_skip',
   },
   purchase_order: {
     poNo: 'pono', cutPo: 'cut_po', processType: 'processType',
@@ -344,100 +302,57 @@ export const DESKTOP_COL_MAP = {
     shipVia: 'shipvia', user1: 'user1', user2: 'user2', user3: 'user3',
     user4: 'user4', line: 'line', style: 'style', color: 'color',
     sizeCat: 'Sizecat', prepack: 'prepack',
+    unit1: 'unit1', unit2: 'unit2', unit3: 'unit3', unit4: 'unit4',
+    unit5: 'unit5', unit6: 'unit6', unit7: 'unit7', unit8: 'unit8',
+    unit9: 'unit9', unit10: 'unit10', unit11: 'unit11', unit12: 'unit12',
+    unit13: 'unit13', unit14: 'unit14', unit15: 'unit15',
+    unitSum: 'unitSum', price: 'price',
   },
   style: {
     style: 'style', color: 'color', type: 'type', rawMatType: 'rawMatType',
     binLocation: 'Binlocation', descript: 'Descript', division: 'division',
     subdivision: 'Subdivision', category: 'Category', subCategory: 'SubCategory',
     grp: 'Grp', season: 'Season', sizeCat: 'Sizecat', cost: 'Cost',
-    price1: 'Price1', memo: 'memo', availableDate: 'availabledate',
+    price1: 'Price1', price2: 'price2', price3: 'price3', price4: 'price4',
+    price5: 'price5', memo: 'memo', availableDate: 'availabledate',
     bundle: 'bundle', cost1: 'cost1', cost2: 'cost2', cost3: 'cost3',
-    price2: 'price2', price3: 'price3', price4: 'price4', price5: 'price5',
     fabContent: 'fabcontent', fabricType: 'fabricType', ldp: 'ldp',
     weight: 'weight', sgtRetailPrice: 'sgtRetailPrice', uom: 'uom',
     designer: 'designer', coo: 'coo', warehouse: 'warehouse',
     startSellDate: 'startSellDate', vendor1: 'vendor1', fob: 'fob',
     vendorPart1: 'vendorpart1', processType: 'processtype', impCat: 'impCat',
-    reference1: 'reference1',
+    reference1: 'reference1', status: 'status',
+    active: 'active', index: 'index', updateUser: 'updateUser',
+    updateTime: 'updateTime', userName: 'userName', userTime: 'userTime',
+    binLocation2: 'binLocation2', hsTariffNo: 'hsTariffNo',
+    vendorPart2: 'vendorpart2', vendor2: 'vendor2',
   },
   customer: {
     code: 'code', name: 'Name', addr1: 'addr1', addr2: 'addr2',
     city: 'city', state: 'state', zip: 'zip', country: 'country',
-    contact: 'contact', phone: 'phone', billAddr1: 'Bill to addr1',
-    billAddr2: 'Bill to addr2', billCity: 'Bill to city', billState: 'Bill to state',
+    contact: 'contact', phone: 'phone', phone1: 'phone1', phone2: 'phone2',
+    fax1: 'fax1', fax2: 'fax2', contact1: 'contact1', contact2: 'contact2',
+    title1: 'title1', title2: 'title2', email1: 'email1', email2: 'email2',
+    billAddr1: 'Bill to addr1', billAddr2: 'Bill to addr2',
+    billCity: 'Bill to city', billState: 'Bill to state',
     billZip: 'Bill to zip', billCountry: 'Bill to country',
-    phone1: 'phone1', phone2: 'phone2', fax1: 'fax1', fax2: 'fax2',
-    contact1: 'contact1', contact2: 'contact2', title1: 'title1', title2: 'title2',
-    email1: 'email1', email2: 'email2', term: 'term', shipVia: 'shipvia',
-    status: 'status', division: 'division', priceLevel: 'priceLevel',
-    paymentCode: 'Paymentcode', type: 'type', salesRep1: 'Sales Rep 1',
-    comRate1: 'Sales Rep 1 Rate', salesRep2: 'Sales Rep 2',
-    comRate2: 'Sales Rep 2 Rate', warehouse: 'warehouse', memo: 'memo',
+    term: 'term', shipVia: 'shipvia', status: 'status', division: 'division',
+    priceLevel: 'priceLevel', paymentCode: 'Paymentcode', type: 'type',
+    salesRep1: 'Sales Rep 1', salesRep1Rate: 'Sales Rep 1 Rate',
+    salesRep2: 'Sales Rep 2', salesRep2Rate: 'Sales Rep 2 Rate',
+    warehouse: 'warehouse', priority: 'customerpriority', memo: 'memo',
+    active: 'active', creditLimit: 'creditLimit', currency: 'currency',
+    federalId: 'federalId', onHold: 'onHold', orderDiscountRate: 'orderDiscountRate',
+    resellerNum: 'resellerNum', routingGuide: 'routingGuide', taxNo: 'taxNo',
+    territory: 'territory', userName: 'userName', userTime: 'userTime',
   },
   inventory: {
     style: 'Style #', color: 'Color', warehouse: 'WAREHOUSE',
+    unit1: 'Unit1', unit2: 'Unit2', unit3: 'Unit3', unit4: 'Unit4',
+    unit5: 'Unit5', unit6: 'Unit6', unit7: 'Unit7', unit8: 'Unit8',
+    unit9: 'Unit9', unit10: 'Unit10', unit11: 'Unit11', unit12: 'Unit12',
+    unit13: 'Unit13', unit14: 'Unit14', unit15: 'Unit15',
   },
-}
-
-// Build mapping pre-filled with Desktop column names as fixed targets
-export function buildDesktopMapping(moduleKey) {
-  const schema = SCHEMAS[moduleKey]
-  const colMap = DESKTOP_COL_MAP[moduleKey] || {}
-  const mapping = {}
-  for (const [col, def] of Object.entries(schema)) {
-    const desktopCol = colMap[col]
-    const isRule = def.tf && (def.tf.startsWith('date:') || def.tf.startsWith('map:') ||
-      def.tf.startsWith('prefix:') || def.tf.startsWith('suffix:') ||
-      def.tf === 'upper' || def.tf === 'lower')
-    mapping[col] = {
-      src: desktopCol ? desktopCol : def.src,
-      tf: isRule ? def.tf : '',
-      fixedVal: (!isRule && def.tf) ? def.tf : '',
-    }
-  }
-  return mapping
-}
-
-// ─── Cloud N41 Column Definitions ────────────────────────────────────────────
-
-export const CLOUD_COLUMNS = {
-  sales_order: [
-    'index','orderNo','orderDate','startDate','customer','type','shipTo','billTo',
-    'division','po','releaseNo','shipVia','term','memo','houseMemo','bulkOrder',
-    'box','currency','orderDecision','discountRate','memoCode','voids','updateUser',
-    'updateTime','routingGuide','priceLevel','shipToStore','dc','paymentCode',
-    'freight','misc','taxable1','taxable2','line','style','color','warehouse',
-    'cancelDate','status','sizeCategory','size','quantity','price','memoDet',
-    'userName','userTime','cancelReason','season','promotion','salesRep1','comRate1',
-    'salesRep2','comRate2','tradeShow','bundle','numOfBundle','checkSkip',
-  ],
-  purchase_order: [
-    'poNo','cutPo','processType','orderDate','startDate','cancelDate','etaDate',
-    'shipDate','vendor','division','warehouse','status','shipVia','user1','user2',
-    'user3','user4','line','style','color','unit1','unit2','unit3','unit4','unit5',
-    'unit6','unit7','unit8','unit9','unit10','unit11','unit12','unit13','unit14',
-    'unit15','unitSum','price',
-  ],
-  style: [
-    'style','color','status','descript','division','subdivision','fabricType',
-    'processType','category','subCategory','designer','impCat','season','grp',
-    'coo','hsTariffNo','binLocation','binLocation2','availableDate','startSellDate',
-    'sizeCat','bundle','fabContent','price1','price2','price3','price4','price5',
-    'cost','cost1','cost2','cost3','memo','warehouse','vendor1','vendorPart1',
-    'uom','ldp','weight','sgtRetailPrice','reference1','reference2','type',
-    'rawMatType','userName','userTime','updateUser','updateTime','index',
-  ],
-  customer: [
-    'code','name','addr1','addr2','city','state','zip','country','phone1','phone2',
-    'fax1','fax2','contact1','contact2','title1','title2','email1','email2','term',
-    'shipVia','status','division','memo','warehouse','salesRep1','salesRep1Rate',
-    'salesRep2','salesRep2Rate','priceLevel','paymentCode','type','priority',
-    'customerPriority','user1','user2','user3','user4',
-  ],
-  inventory: [
-    'style','color','warehouse','unit1','unit2','unit3','unit4','unit5','unit6',
-    'unit7','unit8','unit9','unit10','unit11','unit12','unit13','unit14','unit15',
-  ],
 }
 
 export const CLOUD_COL_MAP = {
@@ -469,22 +384,32 @@ export const CLOUD_COL_MAP = {
     division: 'division', warehouse: 'warehouse', status: 'status',
     shipVia: 'shipVia', user1: 'user1', user2: 'user2', user3: 'user3',
     user4: 'user4', line: 'line', style: 'style', color: 'color',
-    price: 'price',
+    unit1: 'unit1', unit2: 'unit2', unit3: 'unit3', unit4: 'unit4',
+    unit5: 'unit5', unit6: 'unit6', unit7: 'unit7', unit8: 'unit8',
+    unit9: 'unit9', unit10: 'unit10', unit11: 'unit11', unit12: 'unit12',
+    unit13: 'unit13', unit14: 'unit14', unit15: 'unit15',
+    unitSum: 'unitSum', price: 'price',
   },
   style: {
     style: 'style', color: 'color', status: 'status', descript: 'descript',
     division: 'division', subdivision: 'subdivision', fabricType: 'fabricType',
     processType: 'processType', category: 'category', subCategory: 'subCategory',
     designer: 'designer', impCat: 'impCat', season: 'season', grp: 'grp',
-    coo: 'coo', binLocation: 'binLocation', availableDate: 'availableDate',
-    startSellDate: 'startSellDate', sizeCat: 'sizeCat', bundle: 'bundle',
-    fabContent: 'fabContent', price1: 'price1', price2: 'price2',
-    price3: 'price3', price4: 'price4', price5: 'price5',
-    cost: 'cost', cost1: 'cost1', cost2: 'cost2', cost3: 'cost3',
-    memo: 'memo', warehouse: 'warehouse', vendor1: 'vendor1',
-    vendorPart1: 'vendorPart1', uom: 'uom', ldp: 'ldp', weight: 'weight',
-    sgtRetailPrice: 'sgtRetailPrice', reference1: 'reference1',
-    type: 'type', rawMatType: 'rawMatType',
+    coo: 'coo', binLocation: 'binLocation', binLocation2: 'binLocation2',
+    availableDate: 'availableDate', startSellDate: 'startSellDate',
+    sizeCat: 'sizeCat', bundle: 'bundle', fabContent: 'fabContent',
+    price1: 'price1', price2: 'price2', price3: 'price3', price4: 'price4',
+    price5: 'price5', cost: 'cost', cost1: 'cost1', cost2: 'cost2',
+    cost3: 'cost3', memo: 'memo', warehouse: 'warehouse',
+    vendor1: 'vendor1', vendorPart1: 'vendorPart1', uom: 'uom',
+    ldp: 'ldp', weight: 'weight', sgtRetailPrice: 'sgtRetailPrice',
+    reference1: 'reference1', reference2: 'reference2',
+    type: 'type', rawMatType: 'rawMatType', userName: 'userName',
+    userTime: 'userTime', updateUser: 'updateUser', updateTime: 'updateTime',
+    index: 'index',
+    active: 'active', updateUser: 'updateUser',
+    updateTime: 'updateTime', userName: 'userName', userTime: 'userTime',
+    hsTariffNo: 'hsTariffNo', vendorPart2: 'vendorPart2', vendor2: 'vendor2',
   },
   customer: {
     code: 'code', name: 'name', addr1: 'addr1', addr2: 'addr2',
@@ -493,27 +418,56 @@ export const CLOUD_COL_MAP = {
     contact1: 'contact1', contact2: 'contact2', title1: 'title1', title2: 'title2',
     email1: 'email1', email2: 'email2', term: 'term', shipVia: 'shipVia',
     status: 'status', division: 'division', memo: 'memo', warehouse: 'warehouse',
-    salesRep1: 'salesRep1', comRate1: 'salesRep1Rate',
-    salesRep2: 'salesRep2', comRate2: 'salesRep2Rate',
+    salesRep1: 'salesRep1', salesRep1Rate: 'salesRep1Rate',
+    salesRep2: 'salesRep2', salesRep2Rate: 'salesRep2Rate',
     priceLevel: 'priceLevel', paymentCode: 'paymentCode', type: 'type',
-    user1: 'user1', user2: 'user2', user3: 'user3', user4: 'user4',
+    priority: 'customerPriority', user1: 'user1', user2: 'user2',
+    user3: 'user3', user4: 'user4',
+    active: 'active', creditLimit: 'creditLimit', currency: 'currency',
+    federalId: 'federalId', onHold: 'onHold', orderDiscountRate: 'orderDiscountRate',
+    resellerNum: 'resellerNum', routingGuide: 'routingGuide', taxNo: 'taxNo',
+    territory: 'territory', userName: 'userName', userTime: 'userTime',
   },
   inventory: {
     style: 'style', color: 'color', warehouse: 'warehouse',
+    unit1: 'unit1', unit2: 'unit2', unit3: 'unit3', unit4: 'unit4',
+    unit5: 'unit5', unit6: 'unit6', unit7: 'unit7', unit8: 'unit8',
+    unit9: 'unit9', unit10: 'unit10', unit11: 'unit11', unit12: 'unit12',
+    unit13: 'unit13', unit14: 'unit14', unit15: 'unit15',
   },
 }
 
-export function buildCloudMapping(moduleKey) {
+export function buildDesktopMapping(moduleKey) {
   const schema = SCHEMAS[moduleKey]
-  const colMap = CLOUD_COL_MAP[moduleKey] || {}
+  if (!schema) return {}
+  const colMap = DESKTOP_COL_MAP[moduleKey] || {}
   const mapping = {}
   for (const [col, def] of Object.entries(schema)) {
-    const cloudCol = colMap[col]
+    const targetCol = colMap[col]
     const isRule = def.tf && (def.tf.startsWith('date:') || def.tf.startsWith('map:') ||
       def.tf.startsWith('prefix:') || def.tf.startsWith('suffix:') ||
       def.tf === 'upper' || def.tf === 'lower')
     mapping[col] = {
-      src: cloudCol || def.src,
+      src: targetCol !== undefined ? targetCol : def.src,
+      tf: isRule ? def.tf : '',
+      fixedVal: (!isRule && def.tf) ? def.tf : '',
+    }
+  }
+  return mapping
+}
+
+export function buildCloudMapping(moduleKey) {
+  const schema = SCHEMAS[moduleKey]
+  if (!schema) return {}
+  const colMap = CLOUD_COL_MAP[moduleKey] || {}
+  const mapping = {}
+  for (const [col, def] of Object.entries(schema)) {
+    const targetCol = colMap[col]
+    const isRule = def.tf && (def.tf.startsWith('date:') || def.tf.startsWith('map:') ||
+      def.tf.startsWith('prefix:') || def.tf.startsWith('suffix:') ||
+      def.tf === 'upper' || def.tf === 'lower')
+    mapping[col] = {
+      src: targetCol !== undefined ? targetCol : def.src,
       tf: isRule ? def.tf : '',
       fixedVal: (!isRule && def.tf) ? def.tf : '',
     }
