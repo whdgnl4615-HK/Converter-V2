@@ -182,10 +182,11 @@ export function resolveValue(col, mapping, row, rowIdx) {
 // ─── Batch conversion ─────────────────────────────────────────────────────────
 
 export function convertRows(evdData, mapping, moduleKey) {
-  const activeCols = Object.keys(mapping).filter(c => mapping[c]?.src !== '')
+  const allCols = Object.keys(mapping)
   return evdData.map((row, i) => {
     const out = {}
-    activeCols.forEach(col => {
+    allCols.forEach(col => {
+      // Always include column — empty src keeps header but writes empty string
       out[col] = resolveValue(col, mapping, row, i)
     })
     return out
@@ -196,10 +197,10 @@ export function convertRows(evdData, mapping, moduleKey) {
 
 export function downloadXlsx(rows, mapping, moduleKey) {
   import('xlsx').then(XLSX => {
-    const activeCols = Object.keys(mapping).filter(c => mapping[c]?.src !== '')
+    const allCols = Object.keys(mapping)
     const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(rows, { header: activeCols })
-    ws['!cols'] = activeCols.map(c => ({ wch: Math.max(c.length + 2, 12) }))
+    const ws = XLSX.utils.json_to_sheet(rows, { header: allCols })
+    ws['!cols'] = allCols.map(c => ({ wch: Math.max(c.length + 2, 12) }))
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
     const d = new Date()
     const ds = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
