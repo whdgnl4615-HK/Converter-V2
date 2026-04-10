@@ -51,9 +51,9 @@ export default function ConverterPage({ module: moduleKey }) {
 
   useEffect(() => {
     if (step === 3 && evdData.length) {
-      const rows = evdData.slice(0, 5).map((row, i) => {
+      const activeCols = Object.keys(mapping).filter(c => mapping[c]?.src !== '')
+      const rows = evdData.map((row, i) => {
         const out = {}
-        const activeCols = Object.keys(mapping).filter(c => mapping[c]?.src !== '')
         activeCols.forEach(col => { out[col] = resolveValue(col, mapping, row, i) })
         return out
       })
@@ -232,7 +232,7 @@ export default function ConverterPage({ module: moduleKey }) {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className={`flex-1 p-6 ${step === 3 ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
 
           {/* ── STEP 1: Upload ── */}
           {step === 1 && (
@@ -333,150 +333,197 @@ export default function ConverterPage({ module: moduleKey }) {
 
           {/* ── STEP 3: Preview & Convert ── */}
           {step === 3 && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm mono font-bold uppercase" style={{color:'var(--text2)',letterSpacing:'2px'}}>
-                  {T.converter.previewTitle}
-                </h2>
-                <div className="flex items-center gap-2">
-                  {/* AI Cleanse button */}
-                  <button onClick={handleAICleanse} disabled={aiCleansing}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs mono font-bold transition-all"
-                    style={{
-                      background: aiCleansing ? 'var(--s2)' : 'var(--accent-glow)',
-                      border: '1px solid var(--accent)',
-                      color: aiCleansing ? 'var(--text3)' : 'var(--accent)',
-                      cursor: aiCleansing ? 'wait' : 'pointer',
-                    }}>
-                    {aiCleansing
-                      ? <><span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span> AI 분석 중…</>
-                      : <>✨ AI 데이터 클렌징 제안</>
-                    }
-                  </button>
-                  {aiCleanseMsg && (
-                    <span className="text-xs mono" style={{color: aiCleanseMsg.startsWith('❌') ? 'var(--red)' : 'var(--green)'}}>
-                      {aiCleanseMsg}
-                    </span>
-                  )}
-                </div>
-              </div>
+            <div className="flex flex-col h-full" style={{minHeight:0}}>
 
-              {/* AI Cleanse Panel */}
-              {showCleansePanel && cleanseResults.length > 0 && (
-                <div className="rounded-xl mb-4 overflow-hidden" style={{border:'1px solid var(--accent)',background:'rgba(124,106,247,0.05)'}}>
-                  <div className="px-4 py-3 flex items-center justify-between"
-                    style={{background:'rgba(124,106,247,0.1)',borderBottom:'1px solid rgba(124,106,247,0.2)'}}>
-                    <span className="text-xs mono font-bold" style={{color:'var(--accent)'}}>
-                      ✨ AI 클렌징 제안 — {cleanseResults.length}개
-                    </span>
-                    <div className="flex gap-2">
-                      <button onClick={applyAllCleanses}
-                        className="px-3 py-1 rounded-lg text-xs mono font-bold"
-                        style={{background:'var(--accent)',color:'white'}}>
-                        전체 적용
-                      </button>
-                      <button onClick={() => setShowCleansePanel(false)}
-                        style={{color:'var(--text3)',background:'none',border:'none',cursor:'pointer',fontSize:'16px'}}>×</button>
+              {/* Top controls */}
+              <div className="flex-shrink-0 mb-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm mono font-bold uppercase" style={{color:'var(--text2)',letterSpacing:'2px'}}>
+                    {lang==='ko' ? '변환 미리보기' : 'Preview'}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleAICleanse} disabled={aiCleansing}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs mono font-bold transition-all"
+                      style={{
+                        background: aiCleansing ? 'var(--s2)' : 'var(--accent-glow)',
+                        border: '1px solid var(--accent)',
+                        color: aiCleansing ? 'var(--text3)' : 'var(--accent)',
+                        cursor: aiCleansing ? 'wait' : 'pointer',
+                      }}>
+                      {aiCleansing
+                        ? <><span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span> AI 분석 중…</>
+                        : <>✨ AI 클렌징 제안</>
+                      }
+                    </button>
+                    {aiCleanseMsg && (
+                      <span className="text-xs mono" style={{color: aiCleanseMsg.startsWith('❌') ? 'var(--red)' : 'var(--green)'}}>
+                        {aiCleanseMsg}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {convertMsg && (
+                      <span className="text-xs mono" style={{
+                        color: convertMsg.includes('오류') || convertMsg.includes('Error') ? 'var(--red)' : 'var(--green)'
+                      }}>{convertMsg}</span>
+                    )}
+                    <button onClick={() => setStep(2)}
+                      className="px-3 py-1.5 rounded-lg text-sm mono transition-all"
+                      style={{background:'transparent',border:'1px solid var(--border2)',color:'var(--text2)'}}>
+                      {T.converter.back}
+                    </button>
+                    <button onClick={handleConvert} disabled={converting}
+                      className="px-5 py-1.5 rounded-lg text-sm mono font-bold transition-all"
+                      style={{background:'var(--green)',color:'#0a1a10',opacity:converting?0.6:1}}>
+                      {converting ? T.converter.converting : T.converter.convert}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {[
+                    [evdData.length, lang==='ko'?'총 레코드':'Total Records'],
+                    [activeCols.length, lang==='ko'?'활성 컬럼':'Active Cols'],
+                    [uniqueCount, lang==='ko'?'고유 건수':'Unique Count'],
+                  ].map(([val, lbl]) => (
+                    <div key={lbl} className="rounded-lg p-2 text-center" style={{background:'var(--s1)',border:'1px solid var(--border)'}}>
+                      <div className="text-lg font-bold mono" style={{color:'var(--accent)'}}>{val}</div>
+                      <div className="text-xs" style={{color:'var(--text2)'}}>{lbl}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* AI Cleanse Panel */}
+                {showCleansePanel && cleanseResults.length > 0 && (
+                  <div className="rounded-xl mb-2 overflow-hidden" style={{border:'1px solid var(--accent)',background:'rgba(124,106,247,0.05)'}}>
+                    <div className="px-4 py-2 flex items-center justify-between"
+                      style={{background:'rgba(124,106,247,0.1)',borderBottom:'1px solid rgba(124,106,247,0.2)'}}>
+                      <span className="text-xs mono font-bold" style={{color:'var(--accent)'}}>
+                        ✨ AI 클렌징 제안 — {cleanseResults.length}개
+                      </span>
+                      <div className="flex gap-2">
+                        <button onClick={applyAllCleanses}
+                          className="px-3 py-1 rounded-lg text-xs mono font-bold"
+                          style={{background:'var(--accent)',color:'white'}}>전체 적용</button>
+                        <button onClick={() => setShowCleansePanel(false)}
+                          style={{color:'var(--text3)',background:'none',border:'none',cursor:'pointer',fontSize:'16px'}}>×</button>
+                      </div>
+                    </div>
+                    <div style={{maxHeight:'140px',overflowY:'auto'}}>
+                      {cleanseResults.map((r, i) => {
+                        const p = PRIORITY_COLOR[r.priority] || PRIORITY_COLOR.low
+                        const applied = appliedCleanses.has(r.n41Col)
+                        return (
+                          <div key={i} className="px-4 py-2 flex items-center gap-3"
+                            style={{borderBottom:'1px solid rgba(124,106,247,0.1)',background:applied?'rgba(61,214,140,0.04)':'transparent'}}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs mono font-bold" style={{color:'var(--accent)'}}>{r.n41Col}</span>
+                                <span className="text-xs mono px-1.5 py-0.5 rounded" style={{background:p.bg,color:p.color}}>{p.label}</span>
+                                <span className="text-xs" style={{color:'var(--text2)'}}>{r.reason}</span>
+                                <span className="text-xs mono px-1.5 py-0.5 rounded" style={{background:'var(--s2)',color:'var(--orange)',border:'1px solid var(--border)'}}>{r.suggested_tf}</span>
+                                {applied && <span className="text-xs mono" style={{color:'var(--green)'}}>✓</span>}
+                              </div>
+                            </div>
+                            {!applied && (
+                              <button onClick={() => applyOneCleanse(r.n41Col, r.suggested_tf)}
+                                className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs mono font-bold"
+                                style={{background:'var(--accent-glow)',border:'1px solid var(--accent)',color:'var(--accent)'}}>
+                                적용
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
-                  <div className="divide-y" style={{borderColor:'rgba(124,106,247,0.15)'}}>
-                    {cleanseResults.map((r, i) => {
-                      const p = PRIORITY_COLOR[r.priority] || PRIORITY_COLOR.low
-                      const applied = appliedCleanses.has(r.n41Col)
-                      return (
-                        <div key={i} className="px-4 py-3 flex items-start gap-4"
-                          style={{background: applied ? 'rgba(61,214,140,0.04)' : 'transparent'}}>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs mono font-bold" style={{color:'var(--accent)'}}>{r.n41Col}</span>
-                              <span className="text-xs mono px-1.5 py-0.5 rounded" style={{background:p.bg,color:p.color}}>{p.label}</span>
-                              {applied && <span className="text-xs mono" style={{color:'var(--green)'}}>✓ 적용됨</span>}
-                            </div>
-                            <div className="text-xs mb-1" style={{color:'var(--text2)'}}>{r.reason}</div>
-                            <div className="text-xs mono px-2 py-1 rounded inline-block"
-                              style={{background:'var(--s2)',color:'var(--orange)',border:'1px solid var(--border)'}}>
-                              {r.suggested_tf}
-                            </div>
-                          </div>
-                          {!applied && (
-                            <button onClick={() => applyOneCleanse(r.n41Col, r.suggested_tf)}
-                              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs mono font-bold transition-all"
-                              style={{background:'var(--accent-glow)',border:'1px solid var(--accent)',color:'var(--accent)'}}>
-                              적용
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                {[
-                  [evdData.length, lang==='ko'?'총 레코드':'Total Records'],
-                  [activeCols.length, lang==='ko'?'활성 컬럼':'Active Cols'],
-                  [uniqueCount, lang==='ko'?'고유 건수':'Unique Count'],
-                ].map(([val, lbl]) => (
-                  <div key={lbl} className="rounded-xl p-4 text-center" style={{background:'var(--s1)',border:'1px solid var(--border)'}}>
-                    <div className="text-2xl font-bold mono" style={{color:'var(--accent)'}}>{val}</div>
-                    <div className="text-xs mt-1" style={{color:'var(--text2)'}}>{lbl}</div>
-                  </div>
-                ))}
+                )}
               </div>
 
-              {/* Preview table */}
-              <div className="rounded-xl overflow-hidden mb-4" style={{border:'1px solid var(--border)'}}>
-                <div className="overflow-x-auto" style={{maxHeight:'280px'}}>
-                  <table className="text-xs" style={{borderCollapse:'collapse',minWidth:'100%'}}>
-                    <thead>
-                      <tr style={{background:'var(--s2)',borderBottom:'1px solid var(--border)'}}>
-                        {previewRows[0] && Object.keys(previewRows[0]).map(col => (
-                          <th key={col} className="px-3 py-2 text-left mono whitespace-nowrap" style={{color:'var(--accent)'}}>
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewRows.map((row, i) => (
-                        <tr key={i} style={{borderBottom:'1px solid rgba(44,44,66,0.4)'}}>
-                          {Object.values(row).map((val, j) => (
-                            <td key={j} className="px-3 py-1.5 mono whitespace-nowrap"
-                              style={{color:'var(--text2)',maxWidth:'160px',overflow:'hidden',textOverflow:'ellipsis'}}>
-                              {String(val)}
-                            </td>
+              {/* Split preview: 위=원본, 아래=변환 */}
+              <div className="flex-1 flex flex-col gap-2" style={{minHeight:0}}>
+
+                {/* 위: 원본 데이터 */}
+                <div className="flex-1 flex flex-col rounded-xl overflow-hidden" style={{border:'1px solid var(--border)',minHeight:0}}>
+                  <div className="flex items-center justify-between px-3 py-2 flex-shrink-0"
+                    style={{background:'var(--s2)',borderBottom:'1px solid var(--border)'}}>
+                    <span className="text-xs mono font-bold uppercase" style={{color:'var(--text3)',letterSpacing:'1px'}}>
+                      📄 {lang==='ko' ? '원본 데이터' : 'Source Data'}
+                    </span>
+                    <span className="text-xs mono" style={{color:'var(--text3)'}}>{evdData.length} rows · {sourceColumns.length} cols</span>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <table className="text-xs" style={{borderCollapse:'collapse',minWidth:'100%'}}>
+                      <thead style={{position:'sticky',top:0,zIndex:5}}>
+                        <tr style={{background:'var(--s2)',borderBottom:'1px solid var(--border)'}}>
+                          <th className="px-3 py-1.5 text-left mono whitespace-nowrap"
+                            style={{color:'var(--text3)',background:'var(--s2)',minWidth:36}}>#</th>
+                          {sourceColumns.map(col => (
+                            <th key={col} className="px-3 py-1.5 text-left mono whitespace-nowrap"
+                              style={{color:'var(--blue)',background:'var(--s2)'}}>
+                              {col}
+                            </th>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {evdData.map((row, i) => (
+                          <tr key={i} style={{borderBottom:'1px solid rgba(44,44,66,0.3)',background:i%2===0?'var(--s1)':'transparent'}}>
+                            <td className="px-3 py-1 mono" style={{color:'var(--text3)'}}>{i+1}</td>
+                            {sourceColumns.map(col => (
+                              <td key={col} className="px-3 py-1 mono whitespace-nowrap"
+                                style={{color:'var(--text2)',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis'}}>
+                                {String(row[col] ?? '')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
 
-              {convertMsg && (
-                <div className="mb-3 px-4 py-2 rounded-lg text-sm mono"
-                  style={{
-                    background: convertMsg.includes('오류') || convertMsg.includes('Error') ? 'rgba(247,108,108,0.1)' : 'rgba(61,214,140,0.1)',
-                    color: convertMsg.includes('오류') || convertMsg.includes('Error') ? 'var(--red)' : 'var(--green)',
-                    border: `1px solid ${convertMsg.includes('오류') || convertMsg.includes('Error') ? 'rgba(247,108,108,0.2)' : 'rgba(61,214,140,0.2)'}`,
-                  }}>
-                  {convertMsg}
+                {/* 아래: 변환 후 데이터 */}
+                <div className="flex-1 flex flex-col rounded-xl overflow-hidden" style={{border:'1px solid var(--green)',minHeight:0}}>
+                  <div className="flex items-center justify-between px-3 py-2 flex-shrink-0"
+                    style={{background:'rgba(61,214,140,0.06)',borderBottom:'1px solid rgba(61,214,140,0.2)'}}>
+                    <span className="text-xs mono font-bold uppercase" style={{color:'var(--green)',letterSpacing:'1px'}}>
+                      ✅ {lang==='ko' ? 'N41 변환 결과' : 'N41 Output'}
+                    </span>
+                    <span className="text-xs mono" style={{color:'var(--text3)'}}>{previewRows.length} rows · {activeCols.length} cols</span>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <table className="text-xs" style={{borderCollapse:'collapse',minWidth:'100%'}}>
+                      <thead style={{position:'sticky',top:0,zIndex:5}}>
+                        <tr style={{background:'rgba(61,214,140,0.06)',borderBottom:'1px solid rgba(61,214,140,0.2)'}}>
+                          <th className="px-3 py-1.5 text-left mono whitespace-nowrap"
+                            style={{color:'var(--text3)',background:'rgba(61,214,140,0.06)',minWidth:36}}>#</th>
+                          {previewRows[0] && Object.keys(previewRows[0]).map(col => (
+                            <th key={col} className="px-3 py-1.5 text-left mono whitespace-nowrap"
+                              style={{color:'var(--green)',background:'rgba(61,214,140,0.06)'}}>
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewRows.map((row, i) => (
+                          <tr key={i} style={{borderBottom:'1px solid rgba(44,44,66,0.3)',background:i%2===0?'var(--s1)':'transparent'}}>
+                            <td className="px-3 py-1 mono" style={{color:'var(--text3)'}}>{i+1}</td>
+                            {Object.values(row).map((val, j) => (
+                              <td key={j} className="px-3 py-1 mono whitespace-nowrap"
+                                style={{color:'var(--text2)',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis'}}>
+                                {String(val)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              )}
 
-              <div className="flex justify-between">
-                <button onClick={() => setStep(2)}
-                  className="px-4 py-2 rounded-lg text-sm mono transition-all"
-                  style={{background:'transparent',border:'1px solid var(--border2)',color:'var(--text2)'}}>
-                  {T.converter.back}
-                </button>
-                <button onClick={handleConvert} disabled={converting}
-                  className="px-6 py-2 rounded-lg text-sm mono font-bold transition-all"
-                  style={{background:'var(--green)',color:'#0a1a10',opacity:converting?0.6:1}}>
-                  {converting ? T.converter.converting : T.converter.convert}
-                </button>
               </div>
             </div>
           )}
