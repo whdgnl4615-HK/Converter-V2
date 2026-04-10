@@ -1,5 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
+import { Outlet, NavLink } from 'react-router-dom'
 import { useLang } from '../../contexts/LangContext'
 import { MODULES } from '../../lib/n41Schema'
 
@@ -12,14 +11,7 @@ const MODULE_PATHS = {
 }
 
 export default function Layout() {
-  const { signOut, isAdmin, profile } = useAuth()
   const { T, lang, setLang } = useLang()
-  const navigate = useNavigate()
-
-  async function handleLogout() {
-    await signOut()
-    navigate('/login')
-  }
 
   return (
     <div className="flex min-h-screen" style={{background:'var(--bg)'}}>
@@ -30,7 +22,6 @@ export default function Layout() {
           <div className="mono text-base font-bold" style={{color:'var(--text)'}}>
             N41 <span style={{color:'var(--accent)'}}>Converter</span>
           </div>
-          <div className="text-xs mt-0.5 mono" style={{color:'var(--text3)'}}>{profile?.email}</div>
         </div>
 
         {/* Nav */}
@@ -50,14 +41,8 @@ export default function Layout() {
             </NavLink>
           ))}
 
-          {isAdmin && (
-            <>
-              <div className="my-2 border-t" style={{borderColor:'var(--border)'}} />
-            </>
-          )}
-
-          {/* Platform Sync - all users */}
           <div className="my-2 border-t" style={{borderColor:'var(--border)'}} />
+
           <NavLink to="/sync"
             className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all`}
             style={({ isActive }) => ({
@@ -69,26 +54,22 @@ export default function Layout() {
             <span>Platform Sync</span>
           </NavLink>
 
-          {isAdmin && (
-            <>
-              <div className="my-2 border-t" style={{borderColor:'var(--border)'}} />
-              <NavLink to="/admin"
-                className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all`}
-                style={({ isActive }) => ({
-                  background: isActive ? 'rgba(247,163,92,0.1)' : 'transparent',
-                  color: isActive ? 'var(--orange)' : 'var(--text2)',
-                  border: isActive ? '1px solid rgba(247,163,92,0.3)' : '1px solid transparent',
-                })}>
-                <span>⚙️</span>
-                <span>{T.admin.title}</span>
-              </NavLink>
-            </>
-          )}
+          <div className="my-2 border-t" style={{borderColor:'var(--border)'}} />
+
+          <NavLink to="/admin"
+            className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all`}
+            style={({ isActive }) => ({
+              background: isActive ? 'rgba(247,163,92,0.1)' : 'transparent',
+              color: isActive ? 'var(--orange)' : 'var(--text2)',
+              border: isActive ? '1px solid rgba(247,163,92,0.3)' : '1px solid transparent',
+            })}>
+            <span>⚙️</span>
+            <span>{T.admin.title}</span>
+          </NavLink>
         </nav>
 
-        {/* Footer */}
-        <div className="px-3 py-4 border-t flex flex-col gap-2" style={{borderColor:'var(--border)'}}>
-          {/* Lang toggle */}
+        {/* Footer - lang toggle only */}
+        <div className="px-3 py-4 border-t" style={{borderColor:'var(--border)'}}>
           <div className="flex gap-1 rounded-lg p-1" style={{background:'var(--s2)',border:'1px solid var(--border)'}}>
             {['ko','en'].map(l => (
               <button key={l} onClick={() => setLang(l)}
@@ -98,13 +79,6 @@ export default function Layout() {
               </button>
             ))}
           </div>
-          <button onClick={handleLogout}
-            className="w-full px-3 py-2 rounded-lg text-xs mono text-left transition-all"
-            style={{color:'var(--text3)'}}
-            onMouseEnter={e => e.currentTarget.style.color='var(--red)'}
-            onMouseLeave={e => e.currentTarget.style.color='var(--text3)'}>
-            {T.nav.logout}
-          </button>
         </div>
       </aside>
 
