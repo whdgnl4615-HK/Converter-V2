@@ -198,3 +198,42 @@ Only include columns that match the user's request. If user says 'all columns', 
   if (!jsonMatch) throw new Error('AI 응답을 파싱할 수 없습니다.')
   return JSON.parse(jsonMatch[0])
 }
+
+// ─── Feature 5: Sync AI command (natural language column mapping/transform) ──
+// e.g. "FashionGo seller ID를 N41 style#로 바꿔줘"
+export async function processSyncCommand(userMessage, platform, platColumns, n41SampleRow, platSampleRow) {
+  const system = `You are a data sync assistant for fashion platform files (FashionGo, Shopify) and N41 ERP.
+The user will describe a column mapping or data transformation they want applied to the platform file.
+You analyze the user's request and return which columns to update and how.
+
+Respond ONLY with valid JSON, no markdown, no explanation.`
+
+  const user = `Platform: ${platform}
+User request: "${userMessage}"
+
+Platform file columns: ${JSON.stringify(platColumns)}
+Platform file sample row: ${JSON.stringify(platSampleRow)}
+N41 sample data: ${JSON.stringify(n41SampleRow)}
+
+Based on the user's request, return JSON:
+{
+  "understanding": "Korean: what you understood the user wants",
+  "changes": [
+    {
+      "platCol": "exact platform column name to update",
+      "sourceType": "n41_field | transform | fixed",
+      "n41Field": "n41 field name if sourceType=n41_field (style/color/sizeCat/bundle/price1/descript etc)",
+      "transform": "optional transform rule (strip_special | truncate:20 | upper etc)",
+      "fixedValue": "if sourceType=fixed, the value to set",
+      "description": "Korean: what this change does"
+    }
+  ],
+  "previewNote": "Korean: any important notes about this change"
+}`
+
+  const text = await callClaude(system, user, 1500)
+  const cleaned = text.replace(/```json|```/g, '').trim()
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('AI 응답을 파싱할 수 없습니다.')
+  return JSON.parse(jsonMatch[0])
+}
