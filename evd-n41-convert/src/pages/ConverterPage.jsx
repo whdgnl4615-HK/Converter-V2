@@ -3,7 +3,7 @@ import { useLang } from '../contexts/LangContext'
 import { useTemplates } from '../hooks/useTemplates'
 import { MODULES, SCHEMAS, buildInitialMapping, buildDesktopMapping, buildCloudMapping } from '../lib/n41Schema'
 import { parseUploadedFile, getSourceColumns, convertRows, downloadXlsx, resolveValue } from '../lib/converter'
-import { suggestAllTransforms } from '../lib/claudeApi'
+import { suggestAllTransforms, processCleanseCommand } from '../lib/claudeApi'
 import MappingTable from '../components/mapping/MappingTable'
 import TemplatePanel from '../components/mapping/TemplatePanel'
 
@@ -26,6 +26,9 @@ export default function ConverterPage({ module: moduleKey }) {
 
   // AI cleanse state
   const [aiCleansing, setAiCleansing]       = useState(false)
+  const [aiChatInput, setAiChatInput]       = useState('')
+  const [aiChatLoading, setAiChatLoading]   = useState(false)
+  const [aiChatMsg, setAiChatMsg]           = useState('')
   const [aiCleanseMsg, setAiCleanseMsg]     = useState('')
   const [cleanseResults, setCleanseResults] = useState([]) // [{n41Col, suggested_tf, reason, priority}]
   const [appliedCleanses, setAppliedCleanses] = useState(new Set())
@@ -49,17 +52,20 @@ export default function ConverterPage({ module: moduleKey }) {
     }
   }, [templates]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  function rebuildPreview(currentMapping) {
+    if (!evdData.length) return
+    const aCols = Object.keys(currentMapping).filter(c => currentMapping[c]?.src !== '')
+    const rows = evdData.map((row, i) => {
+      const out = {}
+      aCols.forEach(col => { out[col] = resolveValue(col, currentMapping, row, i) })
+      return out
+    })
+    setPreviewRows(rows)
+  }
+
   useEffect(() => {
-    if (step === 3 && evdData.length) {
-      const activeCols = Object.keys(mapping).filter(c => mapping[c]?.src !== '')
-      const rows = evdData.map((row, i) => {
-        const out = {}
-        activeCols.forEach(col => { out[col] = resolveValue(col, mapping, row, i) })
-        return out
-      })
-      setPreviewRows(rows)
-    }
-  }, [step, evdData, mapping])
+    if (step === 3) rebuildPreview(mapping)
+  }, [step, evdData, mapping]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleFile(file) {
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
@@ -142,11 +148,10 @@ export default function ConverterPage({ module: moduleKey }) {
   }
 
   function applyOneCleanse(n41Col, tf) {
-    setMapping(prev => ({
-      ...prev,
-      [n41Col]: { ...prev[n41Col], tf }
-    }))
+    const newMapping = { ...mapping, [n41Col]: { ...mapping[n41Col], tf } }
+    setMapping(newMapping)
     setAppliedCleanses(prev => new Set([...prev, n41Col]))
+    if (step === 3) rebuildPreview(newMapping)
   }
 
   function applyAllCleanses() {
@@ -156,9 +161,41 @@ export default function ConverterPage({ module: moduleKey }) {
         updates[r.n41Col] = { ...mapping[r.n41Col], tf: r.suggested_tf }
       }
     }
-    setMapping(prev => ({ ...prev, ...updates }))
+    const newMapping = { ...mapping, ...updates }
+    setMapping(newMapping)
     setAppliedCleanses(new Set(cleanseResults.map(r => r.n41Col)))
     setAiCleanseMsg(`✅ ${cleanseResults.length}개 전체 적용 완료`)
+    if (step === 3) rebuildPreview(newMapping)
+  }
+
+  // AI chat command handler
+  async function handleAiChat() {
+    if (!aiChatInput.trim()) return
+    setAiChatLoading(true)
+    setAiChatMsg('')
+    try {
+      const sampleRow = evdData[0] || {}
+      const results = await processCleanseCommand(aiChatInput, mapping, sourceColumns, sampleRow)
+      if (!results.length) {
+        setAiChatMsg('❌ 해당하는 컬럼을 찾지 못했어요')
+        return
+      }
+      // Apply results
+      let newMapping = { ...mapping }
+      for (const r of results) {
+        if (newMapping[r.n41Col]) {
+          newMapping[r.n41Col] = { ...newMapping[r.n41Col], tf: r.suggested_tf }
+        }
+      }
+      setMapping(newMapping)
+      if (step === 3) rebuildPreview(newMapping)
+      setAiChatMsg(`✅ ${results.length}개 컬럼에 적용: ${results.map(r => r.n41Col).join(', ')}`)
+      setAiChatInput('')
+    } catch (e) {
+      setAiChatMsg('❌ ' + e.message)
+    } finally {
+      setAiChatLoading(false)
+    }
   }
 
   const activeCols = Object.keys(mapping).filter(c => mapping[c]?.src !== '')
@@ -341,24 +378,61 @@ export default function ConverterPage({ module: moduleKey }) {
                   <h2 className="text-sm mono font-bold uppercase" style={{color:'var(--text2)',letterSpacing:'2px'}}>
                     {lang==='ko' ? '변환 미리보기' : 'Preview'}
                   </h2>
-                  <div className="flex items-center gap-2">
-                    <button onClick={handleAICleanse} disabled={aiCleansing}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs mono font-bold transition-all"
-                      style={{
-                        background: aiCleansing ? 'var(--s2)' : 'var(--accent-glow)',
-                        border: '1px solid var(--accent)',
-                        color: aiCleansing ? 'var(--text3)' : 'var(--accent)',
-                        cursor: aiCleansing ? 'wait' : 'pointer',
+                  <div className="flex flex-col gap-2 flex-1">
+                    {/* AI 자동 제안 버튼 */}
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleAICleanse} disabled={aiCleansing}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs mono font-bold transition-all flex-shrink-0"
+                        style={{
+                          background: aiCleansing ? 'var(--s2)' : 'var(--accent-glow)',
+                          border: '1px solid var(--accent)',
+                          color: aiCleansing ? 'var(--text3)' : 'var(--accent)',
+                          cursor: aiCleansing ? 'wait' : 'pointer',
+                        }}>
+                        {aiCleansing
+                          ? <><span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span> 분석 중…</>
+                          : <>✨ AI 자동 제안</>
+                        }
+                      </button>
+                      {aiCleanseMsg && (
+                        <span className="text-xs mono" style={{color: aiCleanseMsg.startsWith('❌') ? 'var(--red)' : 'var(--green)'}}>
+                          {aiCleanseMsg}
+                        </span>
+                      )}
+                    </div>
+                    {/* AI 직접 요청 입력창 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={aiChatInput}
+                        onChange={e => setAiChatInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && !aiChatLoading && handleAiChat()}
+                        placeholder="예: address 컬럼 special character 지워줘 / name 20자 이상 잘라줘"
+                        className="flex-1 rounded-lg px-3 py-1.5 text-xs mono outline-none"
+                        style={{background:'var(--s2)',border:'1px solid var(--border2)',color:'var(--text)',minWidth:0}}
+                        onFocus={e => e.target.style.borderColor='var(--accent)'}
+                        onBlur={e => e.target.style.borderColor='var(--border2)'}
+                      />
+                      <button onClick={handleAiChat} disabled={aiChatLoading || !aiChatInput.trim()}
+                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs mono font-bold transition-all"
+                        style={{
+                          background: aiChatLoading ? 'var(--s2)' : 'var(--accent)',
+                          color: aiChatLoading ? 'var(--text3)' : 'white',
+                          cursor: aiChatLoading || !aiChatInput.trim() ? 'not-allowed' : 'pointer',
+                          opacity: !aiChatInput.trim() ? 0.5 : 1,
+                        }}>
+                        {aiChatLoading
+                          ? <span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span>
+                          : '→ 실행'
+                        }
+                      </button>
+                    </div>
+                    {aiChatMsg && (
+                      <div className="text-xs mono px-2 py-1 rounded" style={{
+                        color: aiChatMsg.startsWith('❌') ? 'var(--red)' : 'var(--green)',
+                        background: aiChatMsg.startsWith('❌') ? 'rgba(247,108,108,0.08)' : 'rgba(61,214,140,0.08)',
                       }}>
-                      {aiCleansing
-                        ? <><span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span> AI 분석 중…</>
-                        : <>✨ AI 클렌징 제안</>
-                      }
-                    </button>
-                    {aiCleanseMsg && (
-                      <span className="text-xs mono" style={{color: aiCleanseMsg.startsWith('❌') ? 'var(--red)' : 'var(--green)'}}>
-                        {aiCleanseMsg}
-                      </span>
+                        {aiChatMsg}
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-3">
