@@ -147,3 +147,54 @@ Only include columns that actually need transformation. Skip columns that look c
   if (!jsonMatch) throw new Error('AI 응답을 파싱할 수 없습니다.')
   return JSON.parse(jsonMatch[0])
 }
+
+// ─── Feature 4: Natural language cleanse command ──────────────────────────────
+// e.g. "address 컬럼 special character 지워줘"
+export async function processCleanseCommand(userMessage, mapping, sourceColumns, sampleRow) {
+  const activeCols = Object.entries(mapping)
+    .filter(([, v]) => v?.src && !v.src.startsWith('__'))
+    .map(([n41Col, v]) => ({
+      n41Col,
+      srcCol: v.src,
+      currentTf: v.tf || '',
+      sampleVal: String(sampleRow?.[v.src] ?? ''),
+    }))
+
+  const system = `You are a data transformation assistant for a fashion ERP import tool.
+The user will describe what transformation they want applied to specific columns.
+Available transform rules:
+- strip_special: remove non-alphanumeric except space/dash/underscore
+- strip_all_special: remove ALL non-alphanumeric
+- no_space: remove all spaces
+- alphanumeric: keep only letters, numbers, spaces
+- upper / lower / title
+- truncate:N (e.g. truncate:20)
+- replace:old|new
+- date:MM/DD/YYYY
+- map:A=X,B=Y
+- prefix:XXX / suffix:XXX
+- Pipe-chain: e.g. "strip_special | upper | truncate:20"
+
+Respond ONLY with valid JSON array, no markdown, no explanation.`
+
+  const user = `User request: "${userMessage}"
+
+Available mapped columns with sample values:
+${activeCols.map(c => `- N41:"${c.n41Col}" src:"${c.srcCol}" sample:${JSON.stringify(c.sampleVal)} current_tf:"${c.currentTf}"`).join('\n')}
+
+Based on the user's request, return JSON array of columns to update:
+[
+  {
+    "n41Col": "exact column name from the list above",
+    "suggested_tf": "transform rule string",
+    "reason": "Korean explanation of what this does"
+  }
+]
+Only include columns that match the user's request. If user says 'all columns', apply to all relevant ones.`
+
+  const text = await callClaude(system, user, 1500)
+  const cleaned = text.replace(/```json|```/g, '').trim()
+  const jsonMatch = cleaned.match(/\[[\s\S]*\]/)
+  if (!jsonMatch) throw new Error('AI 응답을 파싱할 수 없습니다.')
+  return JSON.parse(jsonMatch[0])
+}
