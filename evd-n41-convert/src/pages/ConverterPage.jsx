@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLang } from '../contexts/LangContext'
 import { useTemplates } from '../hooks/useTemplates'
-import { MODULES, SCHEMAS, buildInitialMapping } from '../lib/n41Schema'
+import { MODULES, SCHEMAS, buildInitialMapping, buildDesktopMapping, buildCloudMapping } from '../lib/n41Schema'
 import { parseUploadedFile, getSourceColumns, convertRows, downloadXlsx, resolveValue } from '../lib/converter'
 import { suggestAllTransforms } from '../lib/claudeApi'
 import MappingTable from '../components/mapping/MappingTable'
@@ -12,6 +12,7 @@ export default function ConverterPage({ module: moduleKey }) {
   const { templates, fetchTemplates, saveTemplate, deleteTemplate, setDefault, getDefaultTemplate } = useTemplates(moduleKey)
 
   const [step, setStep]                   = useState(1)
+  const [n41Version, setN41Version]       = useState('') // 'desktop' | 'cloud' | ''
   const [evdData, setEvdData]             = useState([])
   const [sourceColumns, setSourceColumns] = useState([])
   const [mapping, setMapping]             = useState(() => buildInitialMapping(moduleKey))
@@ -35,6 +36,7 @@ export default function ConverterPage({ module: moduleKey }) {
   useEffect(() => {
     setStep(1); setEvdData([]); setSourceColumns([])
     setMapping(buildInitialMapping(moduleKey))
+    setN41Version('')
     setActiveTemplateName(''); setUploadErr(''); setConvertMsg('')
     setCleanseResults([]); setAppliedCleanses(new Set()); setShowCleansePanel(false)
     fetchTemplates()
@@ -62,6 +64,13 @@ export default function ConverterPage({ module: moduleKey }) {
   async function handleFile(file) {
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
       setUploadErr(T.converter.uploadErrFormat); return
+    }
+    // Auto-detect version from filename if not selected
+    if (!n41Version) {
+      const lower = file.name.toLowerCase()
+      const detected = lower.includes('cloud') ? 'cloud' : 'desktop'
+      setN41Version(detected)
+      setMapping(detected === 'desktop' ? buildDesktopMapping(moduleKey) : buildCloudMapping(moduleKey))
     }
     setUploadErr('')
     try {
@@ -228,6 +237,36 @@ export default function ConverterPage({ module: moduleKey }) {
           {/* ── STEP 1: Upload ── */}
           {step === 1 && (
             <div>
+              {/* Desktop / Cloud 선택 */}
+              <div className="flex gap-3 mb-5">
+                {[
+                  { key: 'desktop', label: 'Desktop', icon: '🖥️', desc: 'N41 Desktop Import 템플릿' },
+                  { key: 'cloud',   label: 'Cloud',   icon: '☁️', desc: 'N41 Cloud Import 템플릿' },
+                ].map(v => (
+                  <button key={v.key} onClick={() => {
+                    setN41Version(v.key)
+                    setMapping(v.key === 'desktop' ? buildDesktopMapping(moduleKey) : buildCloudMapping(moduleKey))
+                    setActiveTemplateName(v.key === 'desktop' ? '[Desktop] 기본 매핑' : '')
+                  }}
+                    className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left"
+                    style={{
+                      background: n41Version === v.key ? 'var(--accent-glow)' : 'var(--s1)',
+                      border: `2px solid ${n41Version === v.key ? 'var(--accent)' : 'var(--border)'}`,
+                    }}>
+                    <span className="text-2xl">{v.icon}</span>
+                    <div>
+                      <div className="text-sm font-bold mono" style={{color: n41Version === v.key ? 'var(--accent)' : 'var(--text)'}}>
+                        {v.label}
+                      </div>
+                      <div className="text-xs mt-0.5" style={{color:'var(--text3)'}}>{v.desc}</div>
+                    </div>
+                    {n41Version === v.key && (
+                      <span className="ml-auto text-xs mono" style={{color:'var(--accent)'}}>✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
               <div
                 className="rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all"
                 style={{
