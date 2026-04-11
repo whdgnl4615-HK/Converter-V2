@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Backgrounds */
+  --bg:      #f4f6f9;
+  --s1:      #ffffff;
+  --s2:      #f0f2f6;
+  --s3:      #e8ebf0;
+
+  /* Borders */
+  --border:  #dde1ea;
+  --border2: #c8cdd8;
+
+  /* Brand - Indigo */
+  --accent:      #4f63d2;
+  --accent-glow: rgba(79,99,210,0.10);
+  --accent-light: #eef0fc;
+
+  /* Status colors - toned down for light mode */
+  --green:   #16a34a;
+  --green-bg: #f0fdf4;
+  --orange:  #d97706;
+  --orange-bg: #fffbeb;
+  --red:     #dc2626;
+  --red-bg:  #fef2f2;
+  --blue:    #2563eb;
+  --blue-bg: #eff6ff;
+
+  /* Text */
+  --text:    #1a1f2e;
+  --text2:   #4b5568;
+  --text3:   #9ca3af;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--s2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a0a8b8; }
+
+/* Custom select */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  appearance: none;
+  padding-right: 28px !important;
+}
+
+/* Card shadow for light mode */
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
