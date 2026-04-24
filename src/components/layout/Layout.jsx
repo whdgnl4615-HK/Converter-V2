@@ -1,9 +1,6 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useLang } from '../../contexts/LangContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { useNotifications } from '../../hooks/useNotifications'
 import { MODULES } from '../../lib/n41Schema'
 
 const MODULE_PATHS = {
@@ -31,9 +28,6 @@ export default function Layout() {
     await signOut()
     navigate('/login')
   }
-  const { user } = useAuth()
-  const { unreadCount } = useNotifications()
-
   return (
     <div className="flex min-h-screen" style={{ background: 'var(--bg)' }}>
       {/* Sidebar */}
