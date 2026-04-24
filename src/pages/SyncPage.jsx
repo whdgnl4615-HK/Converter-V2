@@ -795,7 +795,7 @@ export default function SyncPage() {
                 }}>
                 {aiLoading
                   ? <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>{lang==='ko'?'AI 분석 중…':'Analyzing…'}</>
-                  : 'lang==='ko' ? '→ AI 실행 (Enter)' : '→ Run (Enter)''}
+                  : (lang==='ko' ? '→ AI 실행 (Enter)' : '→ Run (Enter)')}
               </button>
               {aiMsg && (
                 <div className="text-xs mono px-2 py-1.5 rounded-lg"
