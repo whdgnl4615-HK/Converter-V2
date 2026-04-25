@@ -358,7 +358,7 @@ function UploadZone({ label, hint, onFile, fileName, color }) {
         <>
           <div className="text-2xl mb-1">✅</div>
           <div className="text-xs mono font-bold truncate w-full" style={{ color, maxWidth: 200 }}>{fileName}</div>
-          <div className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>클릭해서 교체</div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>{T.converter.clickToReplace}</div>
         </>
       ) : (
         <>
@@ -376,7 +376,7 @@ function StatusBadge({ status }) {
   const cfg = {
     ok:      { bg: 'rgba(22,163,74,0.10)',  color: 'var(--green)',  label: '✓ OK' },
     diff:    { bg: 'rgba(217,119,6,0.10)',  color: 'var(--orange)', label: '⚡ DIFF' },
-    missing: { bg: 'rgba(220,38,38,0.08)', color: 'var(--red)',    label: '✕ N41 없음' },
+    missing: { bg: 'rgba(220,38,38,0.08)', color: 'var(--red)',    label: T.converter.n41Missing },
     warn:    { bg: 'rgba(37,99,235,0.08)',  color: 'var(--blue)',   label: '⚠ WARN' },
   }
   const c = cfg[status] || cfg.ok
@@ -447,7 +447,7 @@ export default function SyncPage() {
       const rows = await parseFile(file)
       setN41Map(parseN41(rows))
     } catch (e) {
-      setError('N41 파일 읽기 실패: ' + e.message)
+      setError(T.converter.n41ReadErr + ': ' + e.message)
     }
   }
 
@@ -460,7 +460,7 @@ export default function SyncPage() {
       const rows = await parseFile(file)
       setPlatRows(rows)
     } catch (e) {
-      setError('플랫폼 파일 읽기 실패: ' + e.message)
+      setError(T.converter.platReadErr + ': ' + e.message)
     }
   }
 
@@ -479,7 +479,7 @@ export default function SyncPage() {
       const result = await processSyncCommand(aiInput, platform, platColumns, n41Sample, platSample)
 
       if (!result.changes?.length) {
-        setAiMsg('❌ 변경할 컬럼을 찾지 못했어요. 더 구체적으로 말씀해주세요.')
+        setAiMsg(T.converter.aiColNotFound2)
         return
       }
 
@@ -547,7 +547,7 @@ export default function SyncPage() {
     setAiPreview(null)
     setAiPendingChanges(null)
     setAiInput('')
-    setAiMsg(`✅ ${aiPendingChanges.length}개 컬럼 전체 적용 완료 — 비교 다시 실행해주세요`)
+    setAiMsg(`✅ ${T.converter.aiAllApplied.replace('{n}',aiPendingChanges.length)}`)
   }
 
   // ── Run comparison ──
@@ -562,7 +562,7 @@ export default function SyncPage() {
       else res = diffShopify(platRows, n41Map)
       setResults(res)
     } catch (e) {
-      setError('비교 중 오류: ' + e.message)
+      setError(T.converter.compareErr + ': ' + e.message)
     } finally {
       setLoading(false)
     }
@@ -669,10 +669,10 @@ export default function SyncPage() {
           {/* N41 Upload */}
           <div>
             <div className="text-xs mono uppercase mb-2" style={{ color: 'var(--text3)', letterSpacing: '1.5px' }}>
-              ① N41 Style 파일
+              {lang==='ko'?'① N41 Style 파일':'① N41 Style File'}
             </div>
             <UploadZone
-              label="N41 Style 업로드"
+              {...{}} placeholder={T.converter.n41StyleUpload}
               hint="Desktop xlsx / Cloud csv"
               onFile={handleN41File}
               fileName={n41FileName}
@@ -680,7 +680,7 @@ export default function SyncPage() {
             />
             {n41Map && (
               <div className="mt-1.5 text-xs mono text-center" style={{ color: 'var(--green)' }}>
-                ✓ {n41Map.size}개 style 로드됨
+                {lang==='ko'?`✓ ${n41Map.size}개 style 로드됨`:`✓ ${n41Map.size} styles loaded`}
               </div>
             )}
           </div>
@@ -688,11 +688,11 @@ export default function SyncPage() {
           {/* Platform Upload */}
           <div>
             <div className="text-xs mono uppercase mb-2" style={{ color: 'var(--text3)', letterSpacing: '1.5px' }}>
-              ② {plat.label} 파일
+              {lang==='ko'?`② ${plat.label} 파일`:`② ${plat.label} File`}
             </div>
             <UploadZone
-              label={`${plat.label} export 업로드`}
-              hint=".xlsx 또는 .csv"
+              label={`${plat.label} ${lang==='ko'?'export 업로드':'export upload'}`}
+              {...{}} hint={lang==='ko'?'.xlsx 또는 .csv':'.xlsx or .csv'}
               onFile={handlePlatFile}
               fileName={platFileName}
               color={plat.color}
