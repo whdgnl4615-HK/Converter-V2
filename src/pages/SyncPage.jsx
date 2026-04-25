@@ -19,6 +19,19 @@ const PLATFORMS = {
     packCol: 'Pack',
     altKeyCols: ['Style Number', 'Product ID'],
   },
+  faire: {
+    id: 'faire',
+    label: 'Faire',
+    icon: '🏪',
+    color: '#2d6a4f',
+    colorBg: 'rgba(45,106,79,0.06)',
+    colorBorder: 'rgba(45,106,79,0.20)',
+    keyCol: 'sku',           // = N41 style#
+    colorCol: 'option_1_value',
+    sizeCol: 'option_2_value',
+    packCol: 'case_quantity',
+    altKeyCols: ['SKU', 'product_name_english'],
+  },
   shopify: {
     id: 'shopify',
     label: 'Shopify',
@@ -63,7 +76,7 @@ function expandSizecat(sizecat) {
 }
 
 // ─── File Parser (uses SheetJS from CDN via dynamic import in browser) ────────
-async function parseFile(file) {
+async function parseFile(file, isFaire = false) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = async (e) => {
@@ -76,6 +89,22 @@ async function parseFile(file) {
           resolve(XLSX.utils.sheet_to_json(ws, { defval: '' }))
         } else {
           const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true })
+
+          // Faire: use "Products" sheet, row 3 = field_ids, row 4+ = data
+          if (isFaire && wb.SheetNames.includes('Products')) {
+            const ws = wb.Sheets['Products']
+            const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+            const fieldIds = allRows[2] // 3rd row = field_id keys
+            const dataRows = allRows.slice(3).filter(r => r.some(v => v !== ''))
+            const result = dataRows.map(row => {
+              const obj = {}
+              fieldIds.forEach((id, i) => { if (id) obj[String(id).trim()] = row[i] ?? '' })
+              return obj
+            })
+            resolve(result)
+            return
+          }
+
           const ws = wb.Sheets[wb.SheetNames[0]]
           // Check if row 1 is col widths (numbers), row 2 is actual headers
           const firstRow = XLSX.utils.sheet_to_json(ws, { header: 1, range: 0 })[0] || []
@@ -218,6 +247,84 @@ function parseShopifySKU(sku) {
   return { style: parts[0], color: null, size: null, isPrepack: false }
 }
 
+// ─── Faire Diff Engine ───────────────────────────────────────────────────────
+function diffFaire(faireRows, n41Map) {
+  const results = []
+  for (const row of faireRows) {
+    // SKU = N41 style#
+    const sku = String(row['sku'] || row['SKU'] || '').trim().toUpperCase()
+    if (!sku) continue
+
+    // Get color from Option 1 Value (Option 1 Name = "Color")
+    const opt1Name  = String(row['option_1_name'] || row['Option 1 Name'] || '').trim()
+    const opt1Val   = String(row['option_1_value'] || row['Option 1 Value'] || '').trim().toUpperCase()
+    const opt2Name  = String(row['option_2_name'] || row['Option 2 Name'] || '').trim()
+    const opt2Val   = String(row['option_2_value'] || row['Option 2 Value'] || '').trim()
+    const opt3Name  = String(row['option_3_name'] || row['Option 3 Name'] || '').trim()
+    const opt3Val   = String(row['option_3_value'] || row['Option 3 Value'] || '').trim()
+
+    // FIT check - skip rows with FIT in any option name
+    const hasFit = [opt1Name, opt2Name, opt3Name].some(n => n.toUpperCase().includes('FIT'))
+    if (hasFit) continue
+
+    // Determine size/prepack option (could be opt2 or opt3)
+    let sizeOptName = opt2Name
+    let sizeOptVal  = opt2Val
+    if (opt3Name && opt3Name.toUpperCase().includes('SIZE')) {
+      sizeOptName = opt3Name
+      sizeOptVal  = opt3Val
+    }
+
+    // Find N41 match by style
+    const n41 = n41Map.get([...n41Map.keys()].find(k => k.startsWith(sku + '||')) || '')
+             || [...n41Map.values()].find(v => v.style === sku)
+
+    const diffs = []
+
+    if (!n41) {
+      diffs.push({ field: 'style', label: 'Style#', faireVal: sku, n41Val: '—', status: 'missing' })
+    } else {
+      // Color check
+      const n41Color = n41.color.toUpperCase()
+      if (opt1Val && opt1Val !== n41Color) {
+        diffs.push({ field: 'color', label: 'Color (Option 1)', faireVal: opt1Val, n41Val: n41Color, status: 'diff', fix: n41Color })
+      }
+
+      // Size/Prepack check
+      const bundle = parseInt(n41.bundle) || 1
+      const isPrepack = bundle > 1
+      const sizes = expandSizecat(n41.sizeCat)
+
+      if (isPrepack) {
+        // Expected: "Size|Prepack" with value like "3-2-1;S-M-L"
+        const expectedName = 'Size|Prepack'
+        const expectedVal  = sizes.join('–')  // em dash
+
+        if (!sizeOptName.includes('Prepack')) {
+          diffs.push({ field: 'size_type', label: 'Size Option Type', faireVal: sizeOptName, n41Val: expectedName, status: 'diff', fix: expectedName })
+        }
+        // Check size breakdown (ignore bundle ratio, just check sizes)
+        const fareeSizes = sizeOptVal.includes(';') ? sizeOptVal.split(';')[1] : sizeOptVal
+        const n41SizeStr = sizes.join('–')
+        if (fareeSizes && fareeSizes.toUpperCase() !== n41SizeStr.toUpperCase()) {
+          diffs.push({ field: 'size', label: 'Size Breakdown', faireVal: fareeSizes, n41Val: n41SizeStr, status: 'diff', fix: n41SizeStr })
+        }
+      } else {
+        // Loose: "Size" with value = individual size
+        const n41Sizes = sizes.map(s => s.toUpperCase())
+        if (sizeOptVal && !n41Sizes.includes(sizeOptVal.toUpperCase())) {
+          diffs.push({ field: 'size', label: 'Size', faireVal: sizeOptVal, n41Val: n41Sizes.join(', '), status: 'diff', fix: sizeOptVal })
+        }
+      }
+    }
+
+    if (diffs.length > 0) {
+      results.push({ sku, diffs, _row: row })
+    }
+  }
+  return results
+}
+
 // ─── Shopify Diff Engine ──────────────────────────────────────────────────────
 function diffShopify(shopifyRows, n41Map) {
   const results = []
@@ -312,7 +419,27 @@ async function exportFixed(platform, rows, results, fileName) {
     const updated = { ...row }
     for (const diff of res.diffs) {
       if (!diff.fix) continue
-      if (platform === 'fashiongo') {
+      if (platform === 'faire') {
+    // Faire: apply fixes to option columns, filter FIT rows
+    updatedRows = rows.filter(row => {
+      const names = [row['option_1_name']||row['Option 1 Name']||'',
+                     row['option_2_name']||row['Option 2 Name']||'',
+                     row['option_3_name']||row['Option 3 Name']||'']
+      return !names.some(n => String(n).toUpperCase().includes('FIT'))
+    }).map(row => {
+      const updated = { ...row }
+      for (const r of acceptedResults) {
+        if (r.sku !== String(row['sku']||row['SKU']||'').trim().toUpperCase()) continue
+        for (const d of r.diffs) {
+          if (!d.fix) continue
+          if (d.field === 'color')     { updated['option_1_value'] = d.fix; updated['Option 1 Value'] = d.fix }
+          if (d.field === 'size')      { updated['option_2_value'] = d.fix; updated['Option 2 Value'] = d.fix }
+          if (d.field === 'size_type') { updated['option_2_name']  = d.fix; updated['Option 2 Name']  = d.fix }
+        }
+      }
+      return updated
+    })
+  } else if (platform === 'fashiongo') {
         if (diff.field === 'color') updated['Color/Scent'] = diff.fix
         if (diff.field === 'size')  updated['Size']  = diff.fix
         if (diff.field === 'pack')  updated['Pack']  = diff.fix
@@ -392,7 +519,7 @@ function DiffCell({ diff }) {
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-1 flex-wrap">
         <span className="text-xs mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(220,38,38,0.10)', color: 'var(--red)' }}>
-          {diff.shopifyVal ?? diff.fgVal ?? '—'}
+          {diff.faireVal ?? diff.shopifyVal ?? diff.fgVal ?? '—'}
         </span>
         <span style={{ color: 'var(--text3)', fontSize: 10 }}>→</span>
         <span className="text-xs mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(22,163,74,0.12)', color: 'var(--green)' }}>
@@ -444,7 +571,7 @@ export default function SyncPage() {
     setN41FileName(file.name)
     setResults(null)
     try {
-      const rows = await parseFile(file)
+      const rows = await parseFile(file, platform === 'faire')
       setN41Map(parseN41(rows))
     } catch (e) {
       setError(T.converter.n41ReadErr + ': ' + e.message)
@@ -457,7 +584,7 @@ export default function SyncPage() {
     setPlatFileName(file.name)
     setResults(null)
     try {
-      const rows = await parseFile(file)
+      const rows = await parseFile(file, platform === 'faire')
       setPlatRows(rows)
     } catch (e) {
       setError(T.converter.platReadErr + ': ' + e.message)
@@ -559,7 +686,8 @@ export default function SyncPage() {
       await new Promise(r => setTimeout(r, 50)) // allow render
       let res
       if (platform === 'fashiongo') res = diffFashionGo(platRows, n41Map)
-      else res = diffShopify(platRows, n41Map)
+      else if (platform === 'shopify') res = diffShopify(platRows, n41Map)
+      else if (platform === 'faire') res = diffFaire(platRows, n41Map)
       setResults(res)
     } catch (e) {
       setError(T.converter.compareErr + ': ' + e.message)
