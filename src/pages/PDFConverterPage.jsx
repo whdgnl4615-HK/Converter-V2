@@ -235,7 +235,7 @@ export default function PDFConverterPage() {
                 <>
                   <div className="text-2xl mb-1">📄</div>
                   <div className="text-xs font-bold" style={{ color:'var(--accent)' }}>{lang==='ko'?'PDF 업로드':'Upload PDF'}</div>
-                  <div className="text-xs mt-0.5" style={{ color:'var(--text3)' }}>드래그 또는 클릭</div>
+                <div className="text-xs mt-0.5" style={{ color:'var(--text3)' }}>{lang==='ko'?'드래그 또는 클릭':'Drag or click'}</div>
                 </>
               )}
             </div>
@@ -250,17 +250,17 @@ export default function PDFConverterPage() {
           {/* 추출된 헤더 정보 */}
           {headerInfo && (
             <div className="rounded-xl p-3" style={{ background:'var(--s2)', border:'1px solid var(--border)' }}>
-              <div className="text-xs mono uppercase mb-2" style={{ color:'var(--text3)', letterSpacing:'1px' }}>추출된 정보</div>
+              <div className="text-xs mono uppercase mb-2" style={{ color:'var(--text3)', letterSpacing:'1px' }}>{lang==='ko'?'추출된 정보':'Extracted Info'}</div>
               {[
                 ['PO#', headerInfo.poNo],
-                ['바이어', headerInfo.customer],
-                ['주문일', headerInfo.orderDate],
-                ['선적일', headerInfo.shipDate],
-                ['취소일', headerInfo.cancelDate],
-                ['결제조건', headerInfo.paymentTerms],
-                ['통화', headerInfo.currency],
-                ['배송방법', headerInfo.shipVia],
-                ['라인수', `${editRows.length}개`],
+                [lang==='ko'?'바이어':'Buyer', headerInfo.customer],
+                [lang==='ko'?'주문일':'Order Date', headerInfo.orderDate],
+                [lang==='ko'?'선적일':'Ship Date', headerInfo.shipDate],
+                [lang==='ko'?'취소일':'Cancel Date', headerInfo.cancelDate],
+                [lang==='ko'?'결제조건':'Terms', headerInfo.paymentTerms],
+                [lang==='ko'?'통화':'Currency', headerInfo.currency],
+                [lang==='ko'?'배송방법':'Ship Via', headerInfo.shipVia],
+                [lang==='ko'?'라인수':'Lines', `${editRows.length}`],
               ].map(([k,v]) => v ? (
                 <div key={k} className="flex justify-between text-xs mb-1 gap-2">
                   <span className="mono flex-shrink-0" style={{ color:'var(--text3)' }}>{k}</span>
@@ -273,7 +273,7 @@ export default function PDFConverterPage() {
           {/* 고정값 설정 */}
           <div className="rounded-xl p-3" style={{ background:'var(--s2)', border:'1px solid var(--border)' }}>
             <div className="text-xs mono uppercase mb-2" style={{ color:'var(--text3)', letterSpacing:'1px' }}>
-              고정값 설정
+              <div className="text-xs mono uppercase mb-2" style={{ color:'var(--text3)', letterSpacing:'1px' }}>{lang==='ko'?'고정값 설정':'Fixed Values'}</div>
             </div>
             {FIXED_FIELDS.map(({ key, labelKo, labelEn, placeholder }) => (
               <div key={key} className="mb-2">
@@ -281,7 +281,7 @@ export default function PDFConverterPage() {
                   <span style={{ color:'var(--text3)' }}>{lang === 'ko' ? labelKo : labelEn}</span>
                   {fixedVals[key] && (
                     <span className="text-xs mono px-1 rounded" style={{ background:'var(--accent-light)', color:'var(--accent)' }}>
-                      설정됨
+                    {fixedVals[key] && <span className="text-xs mono px-1 rounded" style={{ background:'var(--accent-light)', color:'var(--accent)' }}>{lang==='ko'?'설정됨':'Set'}</span>}
                     </span>
                   )}
                 </div>
@@ -300,7 +300,7 @@ export default function PDFConverterPage() {
               <button onClick={applyFixed}
                 className="flex-1 py-1.5 rounded-lg text-xs mono font-bold"
                 style={{ background:'var(--accent)', color:'white' }}>
-                전체 행 적용
+              <button onClick={applyFixed} className="flex-1 py-1.5 rounded-lg text-xs mono font-bold" style={{ background:'var(--accent)', color:'white' }}>{lang==='ko'?'전체 행 적용':'Apply to All Rows'}</button>
               </button>
             </div>
             {msg && (
@@ -314,13 +314,13 @@ export default function PDFConverterPage() {
           {/* 템플릿 저장 */}
           <div className="rounded-xl p-3" style={{ background:'var(--s2)', border:'1px solid var(--border)' }}>
             <div className="text-xs mono uppercase mb-2" style={{ color:'var(--text3)', letterSpacing:'1px' }}>
-              템플릿 저장
+              <div className="text-xs mono uppercase mb-2" style={{ color:'var(--text3)', letterSpacing:'1px' }}>{lang==='ko'?'템플릿 저장':'Save Template'}</div>
             </div>
             <input
               value={newTplName}
               onChange={e => setNewTplName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSaveTemplate()}
-              placeholder="거래처명 (e.g. Urban Outfitters)"
+              placeholder={lang==='ko'?'거래처명 (e.g. Urban Outfitters)':'Customer name (e.g. Urban Outfitters)'}
               className="w-full rounded-md px-2 py-1.5 text-xs mono outline-none mb-2"
               style={{ background:'var(--s1)', border:'1px solid var(--border2)', color:'var(--text)' }}
               onFocus={e => e.target.style.borderColor='var(--accent)'}
@@ -329,7 +329,7 @@ export default function PDFConverterPage() {
             <button onClick={handleSaveTemplate} disabled={savingTpl}
               className="w-full py-1.5 rounded-lg text-xs mono font-bold"
               style={{ background:'var(--s1)', border:'1px solid var(--accent)', color:'var(--accent)', opacity:savingTpl?0.6:1 }}>
-              {savingTpl ? '저장 중…' : '💾 현재 고정값 저장'}
+              {savingTpl ? (lang==='ko'?'저장 중…':'Saving…') : (lang==='ko'?'💾 현재 고정값 저장':'💾 Save Current Values')}
             </button>
             {tplMsg && (
               <div className="mt-1.5 text-xs mono text-center"
@@ -347,14 +347,14 @@ export default function PDFConverterPage() {
             <div className="flex-shrink-0 border-b p-4" style={{ borderColor:'var(--border)', background:'var(--s2)' }}>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs mono font-bold uppercase" style={{ color:'var(--text2)', letterSpacing:'1.5px' }}>
-                  저장된 템플릿
+              <span className="text-xs mono font-bold uppercase">{lang==='ko'?'저장된 템플릿':'Saved Templates'}</span>
                 </span>
                 <button onClick={() => setShowTemplates(false)}
                   style={{ color:'var(--text3)', background:'none', border:'none', cursor:'pointer', fontSize:18 }}>×</button>
               </div>
               {templates.length === 0 ? (
                 <div className="text-xs mono text-center py-3" style={{ color:'var(--text3)' }}>
-                  저장된 템플릿이 없어요
+                <div className="text-xs mono text-center py-3" style={{ color:'var(--text3)' }}>{lang==='ko'?'저장된 템플릿이 없어요':'No saved templates'}</div>
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
@@ -370,7 +370,7 @@ export default function PDFConverterPage() {
                         style={{ color: activeTemplate === tpl.name ? 'var(--accent)' : 'var(--text)', background:'none', border:'none', cursor:'pointer' }}>
                         {tpl.name}
                       </button>
-                      <button onClick={() => handleSetDefault(tpl.id)} title="기본값 설정"
+              <button onClick={() => handleSetDefault(tpl.id)} title={lang==='ko'?'기본값 설정':'Set as default'}
                         className="text-xs" style={{ color:'var(--text3)', background:'none', border:'none', cursor:'pointer' }}>★</button>
                       <button onClick={() => handleDeleteTemplate(tpl.id, tpl.name)}
                         className="text-xs" style={{ color:'var(--red)', background:'none', border:'none', cursor:'pointer' }}>✕</button>
@@ -385,11 +385,11 @@ export default function PDFConverterPage() {
             <div className="flex-1 flex items-center justify-center flex-col gap-4" style={{ color:'var(--text3)' }}>
               <div className="text-5xl">📄</div>
               <div className="text-sm mono text-center">
-                <div style={{ color:'var(--text2)' }}>거래처 PO PDF 업로드</div>
-                <div className="mt-1" style={{ color:'var(--text3)' }}>AI가 자동으로 데이터를 추출해요</div>
+                <div style={{ color:'var(--text2)' }}>{lang==='ko'?'거래처 PO PDF 업로드':'Upload Vendor PO PDF'}</div>
+                <div className="mt-1" style={{ color:'var(--text3)' }}>{lang==='ko'?'AI가 자동으로 데이터를 추출해요':'AI extracts data automatically'}</div>
               </div>
               <div className="flex flex-col gap-1.5 mt-2 text-xs mono" style={{ color:'var(--text3)' }}>
-                {['PO#, 날짜, 배송방법 자동 추출','Style, Color, Size, Qty 라인별 추출','고정값 템플릿으로 거래처별 저장'].map(t => (
+              {(lang==='ko'?['PO#, 날짜, 배송방법 자동 추출','Style, Color, Size, Qty 라인별 추출','고정값 템플릿으로 거래처별 저장']:['Auto-extract PO#, dates, shipping','Extract Style, Color, Size, Qty per line','Save fixed value templates per customer']).map(t => (
                   <div key={t} className="flex items-center gap-2">
                     <span style={{ color:'var(--green)' }}>✓</span>{t}
                   </div>
@@ -398,7 +398,7 @@ export default function PDFConverterPage() {
               {templates.length > 0 && (
                 <div className="mt-2 px-4 py-2 rounded-lg text-xs mono"
                   style={{ background:'var(--accent-light)', border:'1px solid var(--accent)', color:'var(--accent)' }}>
-                  📋 {activeTemplate || `${templates.length}개 템플릿 저장됨`} — PDF 업로드하면 자동 적용
+                <div className="mt-2 px-4 py-2 rounded-lg text-xs mono" style={{ background:'var(--accent-light)', border:'1px solid var(--accent)', color:'var(--accent)' }}>📋 {activeTemplate || `${templates.length}${lang==='ko'?'개 템플릿 저장됨':' templates saved'}`} — {lang==='ko'?'PDF 업로드하면 자동 적용':'Auto-applied on PDF upload'}</div>
                 </div>
               )}
             </div>
@@ -409,10 +409,10 @@ export default function PDFConverterPage() {
               <div className="flex items-center justify-between px-4 py-2 flex-shrink-0"
                 style={{ background:'var(--s2)', borderBottom:'1px solid var(--border)' }}>
                 <span className="text-xs mono font-bold" style={{ color:'var(--text2)' }}>
-                  변환 결과 — {editRows.length}행 <span style={{ color:'var(--orange)' }}>✎ 직접 수정 가능</span>
+              <span className="text-xs mono font-bold" style={{ color:'var(--text2)' }}>{lang==='ko'?`변환 결과 — ${editRows.length}행`:`Converted — ${editRows.length} rows`} <span style={{ color:'var(--orange)' }}>✎ {lang==='ko'?'직접 수정 가능':'Editable'}</span></span>
                 </span>
                 <span className="text-xs mono" style={{ color:'var(--text3)' }}>
-                  {DISPLAY_COLS.length}개 컬럼 표시 / 전체 {SO_COLS.length}개
+                <span className="text-xs mono" style={{ color:'var(--text3)' }}>{lang==='ko'?`${DISPLAY_COLS.length}개 컬럼 표시 / 전체 ${SO_COLS.length}개`:`Showing ${DISPLAY_COLS.length} of ${SO_COLS.length} columns`}</span>
                 </span>
               </div>
               <div className="flex-1 overflow-auto">
@@ -465,11 +465,11 @@ export default function PDFConverterPage() {
           {step === 3 && (
             <div className="flex-1 flex items-center justify-center flex-col gap-4">
               <div className="text-5xl">🎉</div>
-              <div className="text-base font-bold" style={{ color:'var(--text)' }}>N41 SO Import 파일 완료!</div>
+              <div className="text-base font-bold" style={{ color:'var(--text)' }}>{lang==='ko'?'N41 SO Import 파일 완료!':'N41 SO Import file ready!'}</div>
               <button onClick={resetAll}
                 className="px-5 py-2 rounded-lg text-sm mono font-bold"
                 style={{ background:'var(--accent)', color:'white' }}>
-                새 PDF 업로드
+              {lang==='ko'?'새 PDF 업로드':'Upload New PDF'}
               </button>
             </div>
           )}
