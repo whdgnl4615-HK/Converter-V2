@@ -15,7 +15,8 @@ export default function AuthPage() {
   const [done, setDone]         = useState(false)
 
   async function handleSubmit(e) {
-    e.preventDefault()
+    e?.preventDefault()
+    console.log('handleSubmit called', mode, email)
     setErr('')
     if (mode === 'signup' && password !== confirm) {
       setErr('Passwords do not match'); return
@@ -124,9 +125,9 @@ export default function AuthPage() {
               </div>
             )}
 
-            <button type="submit" disabled={loading}
+            <button type="submit" onClick={handleSubmit} disabled={loading}
               className="btn-primary w-full py-2.5 mt-1 text-sm"
-              style={{ opacity: loading ? 0.7 : 1 }}>
+              style={{ opacity: loading ? 0.7 : 1, cursor: 'pointer' }}>
               {loading ? '...' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
