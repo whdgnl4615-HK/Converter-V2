@@ -408,7 +408,7 @@ function DiffCell({ diff }) {
 const syncStyles = `@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`
 
 export default function SyncPage() {
-  const { lang } = useLang()
+  const { T, lang } = useLang()
 
   // Files
   const [n41File, setN41File]       = useState(null)
