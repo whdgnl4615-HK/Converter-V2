@@ -63,9 +63,9 @@ export default function MappingTable({ moduleKey, mapping, sourceColumns, onMapp
       }
       setAiSuggestions(valid)
       const count = Object.keys(valid).length
-      setAiMsg(`✨ ${count}개 컬럼 매핑 제안됨 — 확인 후 적용하세요`)
+      setAiMsg(`✨ ${T.converter.aiMappingCount.replace('{n}',count)}`)
     } catch (e) {
-      setAiMsg('❌ AI 오류: ' + e.message)
+      setAiMsg(T.converter.aiMappingErr + e.message)
     } finally {
       setAiLoading(false)
     }
@@ -83,7 +83,7 @@ export default function MappingTable({ moduleKey, mapping, sourceColumns, onMapp
       onMappingChange(col, { ...mapping[col], src, fixedVal: '', tf: mapping[col]?.tf || '' })
     }
     setAppliedCols(new Set(Object.keys(aiSuggestions)))
-    setAiMsg(`✅ ${Object.keys(aiSuggestions).length}개 전체 적용 완료`)
+    setAiMsg(`✅ ${T.converter.aiMappingApplied.replace('{n}',Object.keys(aiSuggestions).length)}`)
   }
 
   // Sample value for a column
@@ -217,7 +217,7 @@ export default function MappingTable({ moduleKey, mapping, sourceColumns, onMapp
                       <button onClick={() => applyOneSuggestion(col)}
                         className="text-xs mono px-2 py-0.5 rounded transition-all"
                         style={{background:'var(--accent)',color:'white'}}>
-                        적용
+                        {T.converter.apply}
                       </button>
                     </div>
                   )}
@@ -240,7 +240,7 @@ export default function MappingTable({ moduleKey, mapping, sourceColumns, onMapp
                         strip_special · no_space<br/>
                         truncate:20 · prefix:WH-<br/>
                         map:A=X,B=Y · replace:old|new<br/>
-                        <span style={{color:'var(--accent)'}}>체이닝: strip_special | upper | truncate:20</span>
+                        <span style={{color:'var(--accent)'}}>{T.converter.chainHint}</span>
                       </div>
                     </>
                   )}
