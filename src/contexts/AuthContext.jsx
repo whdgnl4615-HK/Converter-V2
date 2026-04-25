@@ -1,29 +1,30 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser]             = useState(null)
+  const [profile, setProfile]       = useState(null)
+  const [loading, setLoading]       = useState(true)
   const [notifications, setNotifications] = useState([])
+  const fetchingRef = useRef(false)
 
   async function fetchProfile(userId) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    if (error) { console.warn('fetchProfile error:', error.message); return null }
-    let profileData = data
-    if (data?.brand_id) {
-      const { data: brand } = await supabase
-        .from('brands').select('*').eq('id', data.brand_id).single()
-      profileData = { ...data, brands: brand }
+    if (fetchingRef.current) return
+    fetchingRef.current = true
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      if (error) { console.warn('fetchProfile error:', error.message); return null }
+      setProfile(data)
+      return data
+    } finally {
+      fetchingRef.current = false
     }
-    setProfile(profileData)
-    return profileData
   }
 
   async function fetchNotifications(userId) {
@@ -37,28 +38,39 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    let mounted = true
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return
       if (session?.user) {
-        Promise.all([
-          fetchProfile(session.user.id),
-          fetchNotifications(session.user.id),
-        ]).finally(() => setLoading(false))
-      } else setLoading(false)
+        setUser(session.user)
+        await fetchProfile(session.user.id)
+        await fetchNotifications(session.user.id)
+      }
+      setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return
+      console.log('auth event:', event, session?.user?.email)
+
       if (session?.user) {
-        Promise.all([
-          fetchProfile(session.user.id),
-          fetchNotifications(session.user.id),
-        ]).finally(() => setLoading(false))
-      } else { setProfile(null); setNotifications([]); setLoading(false) }
+        setUser(session.user)
+        await fetchProfile(session.user.id)
+        await fetchNotifications(session.user.id)
+      } else {
+        setUser(null)
+        setProfile(null)
+        setNotifications([])
+      }
+      setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, []) // eslint-disable-line
 
   async function signIn(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -75,11 +87,16 @@ export function AuthProvider({ children }) {
 
   async function signOut() {
     await supabase.auth.signOut()
-    setUser(null); setProfile(null); setNotifications([])
+    setUser(null)
+    setProfile(null)
+    setNotifications([])
   }
 
   async function refreshProfile() {
-    if (user) await fetchProfile(user.id)
+    if (user) {
+      fetchingRef.current = false
+      await fetchProfile(user.id)
+    }
   }
 
   async function markNotificationRead(id) {
