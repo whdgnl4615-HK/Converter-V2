@@ -125,42 +125,64 @@ export default function Layout() {
             )}
           </NavLink>
 
-          <div className="px-2 pb-1 pt-3">
-            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Settings
-            </span>
-          </div>
+          {isAdmin && (
+            <>
+              <div className="px-2 pb-1 pt-3">
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  Settings
+                </span>
+              </div>
 
-          <NavLink to="/admin"
-            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition-all"
-            style={({ isActive }) => ({
-              background: isActive ? 'var(--s2)' : 'transparent',
-              color: isActive ? 'var(--text2)' : 'var(--text3)',
-              fontWeight: isActive ? 500 : 400,
-            })}>
-            {({ isActive }) => (
-              <>
-                <span style={{ fontSize: 12, color: isActive ? 'var(--text2)' : 'var(--text4)' }}>⚙</span>
-                <span style={{ fontSize: 13 }}>{T.admin.title}</span>
-                {unreadCount > 0 && (
-                  <span className="ml-auto flex items-center justify-center rounded-full text-white"
-                    style={{ background: 'var(--red)', fontSize: 9, fontWeight: 700, minWidth: 16, height: 16, padding: '0 4px' }}>
-                    {unreadCount}
-                  </span>
+              <NavLink to="/admin"
+                className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition-all"
+                style={({ isActive }) => ({
+                  background: isActive ? 'var(--s2)' : 'transparent',
+                  color: isActive ? 'var(--text2)' : 'var(--text3)',
+                  fontWeight: isActive ? 500 : 400,
+                })}>
+                {({ isActive }) => (
+                  <>
+                    <span style={{ fontSize: 12, color: isActive ? 'var(--text2)' : 'var(--text4)' }}>⚙</span>
+                    <span style={{ fontSize: 13 }}>{T.admin.title}</span>
+                    {unreadCount > 0 && (
+                      <span className="ml-auto flex items-center justify-center rounded-full text-white"
+                        style={{ background: 'var(--red)', fontSize: 9, fontWeight: 700, minWidth: 16, height: 16, padding: '0 4px' }}>
+                        {unreadCount}
+                      </span>
+                    )}
+                  </>
                 )}
-                {unreadCount > 0 && (
-                  <span className="ml-auto rounded-full px-1.5 text-xs"
-                    style={{ background: 'var(--red)', color: 'white', fontSize: 10, lineHeight: '18px', minWidth: 18, textAlign: 'center' }}>
-                    {unreadCount}
-                  </span>
-                )}
-              </>
-            )}
-          </NavLink>
+              </NavLink>
+            </>
+          )}
         </nav>
 
         {/* Footer */}
-        <div className="px-3 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="px-3 py-3 flex flex-col gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+          {/* User info + logout */}
+          {profile && (
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 11, fontWeight: 600 }}>
+                {(profile.full_name || profile.email || '?')[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium truncate" style={{ color: 'var(--text2)' }}>
+                  {profile.full_name || profile.email?.split('@')[0]}
+                </div>
+                <div className="truncate" style={{ color: 'var(--text4)', fontSize: 10 }}>
+                  {profile.email}
+                </div>
+              </div>
+              <button onClick={handleLogout} title="Sign out"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text4)', fontSize: 14, padding: '2px 4px', borderRadius: 4 }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text4)'}>
+                ↪
+              </button>
+            </div>
+          )}
+          {/* Lang toggle */}
           <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--s2)' }}>
             {['ko', 'en'].map(l => (
               <button key={l} onClick={() => setLang(l)}
@@ -170,10 +192,7 @@ export default function Layout() {
                   color: lang === l ? 'var(--text2)' : 'var(--text4)',
                   fontWeight: lang === l ? 500 : 400,
                   boxShadow: lang === l ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontFamily: 'Inter',
+                  border: 'none', cursor: 'pointer', fontSize: 12, fontFamily: 'Inter',
                 }}>
                 {l === 'ko' ? '한국어' : 'EN'}
               </button>
