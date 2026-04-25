@@ -609,8 +609,8 @@ export default function SyncPage() {
     <div className="flex flex-col h-screen overflow-hidden">
       <style>{syncStyles}</style>
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 flex-shrink-0"
-        className="topbar" style={{position:'sticky',top:0,zIndex:20}}>
+      <div className="topbar flex items-center justify-between px-6 py-3 flex-shrink-0"
+        style={{position:'sticky',top:0,zIndex:20}}>
         <div className="flex items-center gap-3">
           <span className="text-xl">🔄</span>
           <div>
