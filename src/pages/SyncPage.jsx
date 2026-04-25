@@ -699,7 +699,7 @@ export default function SyncPage() {
             />
             {platRows && (
               <div className="mt-1.5 text-xs mono text-center" style={{ color: plat.color }}>
-                ✓ {platRows.length}개 행 로드됨
+                 ✓ {platRows.length}{lang==='ko'?'개 행 로드됨':` rows loaded`}
               </div>
             )}
           </div>
@@ -713,7 +713,7 @@ export default function SyncPage() {
               opacity: loading ? 0.7 : 1,
               cursor: canRun ? 'pointer' : 'not-allowed',
             }}>
-            {loading ? '비교 중…' : '③ 비교 실행 →'}
+            {loading ? lang==='ko'?'비교 중…':'Running…' : lang==='ko'?'③ 비교 실행 →':'③ Run Comparison →'}
           </button>
 
           {error && (
@@ -725,14 +725,14 @@ export default function SyncPage() {
           {/* Mapping reference */}
           <div className="rounded-xl p-3" style={{ background: 'var(--s2)', border: '1px solid var(--border)' }}>
             <div className="text-xs mono uppercase mb-2" style={{ color: 'var(--text3)', letterSpacing: '1px' }}>
-              매핑 기준
+              {lang==='ko'?'매핑 기준':'Mapping Rules'}
             </div>
             {platform === 'fashiongo' ? (
               <div className="flex flex-col gap-1">
                 {[
                   ['Vendor Style #', 'N41 style'],
                   ['Color/Scent', 'N41 color'],
-                  ['Size', 'N41 sizeCat (확장)'],
+                  ['Size', lang==='ko'?'N41 sizeCat (확장)':'N41 sizeCat (expanded)'],
                   ['Pack', 'N41 bundle'],
                 ].map(([fg, n41]) => (
                   <div key={fg} className="flex items-center gap-1 text-xs mono">
@@ -764,7 +764,7 @@ export default function SyncPage() {
             <button onClick={handleExport}
               className="w-full py-2.5 rounded-xl text-sm mono font-bold transition-all"
               style={{ background: 'var(--green)', color: '#0a1a10' }}>
-              ⬇ {stats.accepted}개 수정 적용 후 export
+              ⬇ {lang==='ko'?`${stats.accepted}개 수정 적용 후 export`:`Apply ${stats.accepted} fixes & export`}
             </button>
           )}
 
@@ -778,7 +778,7 @@ export default function SyncPage() {
                 value={aiInput}
                 onChange={e => setAiInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !aiLoading) { e.preventDefault(); handleAiCommand() }}}
-                placeholder={"예: FashionGo seller ID를 N41 style#로 바꿔줘\n예: color 컬럼 대문자로 바꿔줘\n예: size에서 special character 제거해줘"}
+                placeholder={lang==='ko'?"예: FashionGo seller ID를 N41 style#로 바꿔줘\n예: color 컬럼 대문자로 바꿔줘\n예: size에서 special character 제거해줘":"e.g. Map FashionGo Seller ID to N41 style#\ne.g. Convert color to uppercase\ne.g. Remove special chars from size"}
                 rows={3}
                 className="w-full rounded-lg px-3 py-2 text-xs mono outline-none resize-none"
                 style={{ background: 'var(--s2)', border: '1px solid var(--border2)', color: 'var(--text)', lineHeight: 1.6 }}
@@ -902,8 +902,8 @@ export default function SyncPage() {
               style={{ color: 'var(--text3)' }}>
               <div className="text-4xl">🔍</div>
               <div className="text-sm mono">
-                {!n41Map ? 'N41 파일을 먼저 업로드하세요' :
-                 !platRows ? `${plat.label} 파일을 업로드하세요` :
+                {!n41Map ? lang==='ko'?'N41 파일을 먼저 업로드하세요':'Upload N41 file first' :
+                 !platRows ? `${lang==='ko'?plat.label+' 파일을 업로드하세요':plat.label+' file upload required'}` :
                  (lang==='ko' ? '비교 실행 버튼을 눌러주세요' : 'Click Run to compare')}
               </div>
             </div>
@@ -914,7 +914,7 @@ export default function SyncPage() {
                 style={{ borderBottom: '1px solid var(--border)', background: 'var(--s2)' }}>
                 <div className="flex gap-1">
                   {[
-                    { key: 'all',     label: `전체 (${stats.total})` },
+                    { key: 'all',     label: `${lang==='ko'?'전체':'All'} (${stats.total})` },
                     { key: 'diff',    label: `DIFF (${stats.diff})` },
                     { key: 'missing', label: `Missing (${stats.missing})` },
                     { key: 'ok',      label: `OK (${stats.ok})` },
@@ -931,7 +931,7 @@ export default function SyncPage() {
                   ))}
                 </div>
                 <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                  placeholder="Style# 검색…"
+                  {...{}} placeholder={lang==='ko'?'Style# 검색…':'Search Style#…'}
                   className="ml-2 px-3 py-1 rounded-lg text-xs mono outline-none"
                   style={{ background: 'var(--s1)', border: '1px solid var(--border2)', color: 'var(--text)', width: 160 }} />
                 <div className="ml-auto flex items-center gap-2">
@@ -939,7 +939,7 @@ export default function SyncPage() {
                     <input type="checkbox" checked={selectAll}
                       onChange={e => toggleAll(e.target.checked)}
                       className="rounded" />
-                    DIFF 전체 선택
+                    {lang==='ko'?'DIFF 전체 선택':'Select All DIFF'}
                   </label>
                 </div>
               </div>
@@ -950,7 +950,7 @@ export default function SyncPage() {
                   <thead>
                     <tr style={{ background: 'var(--s2)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10 }}>
                       <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text3)', width: 36 }}>#</th>
-                      <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text3)', width: 44 }}>수정</th>
+                      <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text3)', width: 44 }}>{lang==='ko'?'수정':'Fix'}</th>
                       <th className="px-3 py-2 text-left mono" style={{ color: 'var(--accent)' }}>Style#</th>
                       <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text2)' }}>
                         {platform === 'fashiongo' ? 'FG Color' : 'SKU'}
@@ -961,15 +961,15 @@ export default function SyncPage() {
                       {platform === 'fashiongo' && (
                         <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text2)' }}>FG Pack</th>
                       )}
-                      <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text2)' }}>차이</th>
-                      <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text2)' }}>상태</th>
+                      <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text2)' }}>{lang==='ko'?'차이':'Diff'}</th>
+                      <th className="px-3 py-2 text-left mono" style={{ color: 'var(--text2)' }}>{lang==='ko'?'상태':'Status'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.length === 0 ? (
                       <tr>
                         <td colSpan={platform === 'fashiongo' ? 8 : 7} className="text-center py-12 mono"
-                          style={{ color: 'var(--text3)' }}>결과 없음</td>
+                          style={{ color: 'var(--text3)' }}>{lang==='ko'?'결과 없음':'No results'}</td>
                       </tr>
                     ) : filtered.map((r, rowI) => (
                       <tr key={r._idx}
