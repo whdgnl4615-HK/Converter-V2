@@ -1,10 +1,76 @@
 // Claude API helper — called from browser via Anthropic API
 // VITE_CLAUDE_API_KEY must be set in Vercel env vars
 
+
+// ─── N41 ERP Domain Knowledge ─────────────────────────────────────────────────
+const N41_ERP_CONTEXT = `
+## N41 ERP System - Fashion Industry
+
+### Modules & Templates
+- **Sales Order (SO)**: Customer orders received. Cloud cols: index, orderNo, orderDate, startDate, customer, type, shipTo, billTo, division, po, releaseNo, shipVia, term, memo, houseMemo, bulkOrder, box, currency, orderDecision, discountRate, memoCode, voids, line, style, color, warehouse, cancelDate, status, sizeCategory, size, quantity, price, memoDet, userName, userTime, cancelReason, season, promotion, salesRep1, comRate1, salesRep2, comRate2, tradeShow, bundle, numOfBundle, checkSkip
+- **Purchase Order (PO)**: Orders sent to vendors. Cols: poNo, cutPo, processType, orderDate, startDate, cancelDate, etaDate, shipDate, vendor, division, warehouse, status, shipVia, line, style, color, unit1~unit15, unitSum, price
+- **Style**: Product master. Key cols: style, color, status, descript, division, sizeCat, bundle, price1~price5, cost, cost1~cost3, season, category, subCategory, fabricType, coo, vendor1
+- **Customer**: Customer master. Key cols: code, name, addr1, addr2, city, state, zip, country, phone1, phone2, email1, email2, term, shipVia, status, division, priceLevel, paymentCode, salesRep1, salesRep1Rate
+- **Inventory**: Stock levels. Cols: style, color, warehouse, unit1~unit15 (per size quantities)
+
+### Key Field Definitions
+- **orderNo / soNo**: Sales Order number (unique identifier per SO)
+- **poNo**: Purchase Order number sent to vendor
+- **style**: Style/product number (e.g. CD1024)
+- **color**: Color description (e.g. BLACK IVORY)
+- **size**: Individual size (e.g. XS, S, M, L, XL)
+- **sizeCategory / sizeCat**: Size run category (e.g. SML, SMLXL, SMLXL2X, NUMERIC)
+- **unit1~unit15**: Quantity per size slot in PO/Inventory (unit1=first size of sizeCat, e.g. if SML then unit1=S, unit2=M, unit3=L)
+- **unitSum**: Total of unit1~unit15
+- **quantity**: Quantity per line in SO
+- **price**: Unit price (cost to customer for SO, cost to company for PO)
+- **price1**: Retail/wholesale price 1 in Style master
+- **cost**: Base cost in Style master
+- **bundle**: Units per prepack bundle (e.g. 6 = 6pcs per pack)
+- **numOfBundle**: Number of bundles
+- **division**: Business division/brand segment
+- **warehouse**: Warehouse code (e.g. LA, NY)
+- **season**: Season code (e.g. SS2026, FW2026)
+- **po**: Customer's PO number on SO (different from poNo which is vendor PO)
+- **line**: Line number within an order
+- **shipTo / billTo**: Ship-to and bill-to address codes
+- **term**: Payment terms (e.g. NET 30, NET 60)
+- **shipVia**: Shipping method (e.g. ROUTING GUIDE, UPS, FEDEX)
+- **status**: Record status (e.g. N=New, H=Hold, C=Cancel)
+- **salesRep1/2**: Sales representative codes
+- **comRate1/2**: Commission rates for sales reps
+- **cancelDate**: Last date to ship order
+- **startDate**: Ship window start date
+- **memo / houseMemo**: Internal notes
+- **total price**: Calculated as price * quantity (not a stored field)
+- **coo**: Country of Origin
+- **fabricType**: Fabric type/content
+- **descript**: Style description
+
+### Size Categories & unit mapping
+- SML: unit1=S, unit2=M, unit3=L
+- SMLXL: unit1=S, unit2=M, unit3=L, unit4=XL
+- SMLXL2X: unit1=S, unit2=M, unit3=L, unit4=XL, unit5=2X
+- NUMERIC (0-14): unit1=0, unit2=2, unit3=4, unit4=6, unit5=8, unit6=10, unit7=12, unit8=14
+- XS-XL: unit1=XS, unit2=S, unit3=M, unit4=L, unit5=XL
+- ONE SIZE: unit1 only
+
+### Common Operations
+- Moving qty between units: shift unit values (e.g. unit2→unit1 means first size moves to next position)
+- Sequential poNo: start from a base number, increment by 1 per row
+- total price calculation: price * quantity
+- sizeCat expansion: SML → S, M, L as separate rows
+`
+
+// ERP_GLOSSARY is imported from erp_glossary.js (auto-generated from n41_glossary.xlsx)
+import { ERP_GLOSSARY } from './erp_glossary'
+
 const API_KEY = import.meta.env.VITE_CLAUDE_API_KEY
 
 async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
   if (!API_KEY) throw new Error('VITE_CLAUDE_API_KEY 환경변수가 없습니다.')
+
+  const finalSystem = ERP_GLOSSARY + '\n\n' + systemPrompt
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -17,7 +83,7 @@ async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: maxTokens,
-      system: systemPrompt,
+      system: finalSystem,
       messages: [{ role: 'user', content: userPrompt }],
     }),
   })
@@ -34,6 +100,7 @@ async function callClaude(systemPrompt, userPrompt, maxTokens = 1500) {
 // ─── Feature 1: AI Mapping Suggestions ───────────────────────────────────────
 // Given source columns + N41 schema, suggest best mapping
 export async function suggestMappings(moduleKey, sourceColumns, schema) {
+  // Uses ERP context automatically
   const n41Cols = Object.entries(schema).map(([col, def]) => ({
     col,
     desc: def.en || def.ko || col,
@@ -421,4 +488,48 @@ export function convertPOToSORows(parsed) {
     numOfBundle: '',
     checkSkip:  '',
   }))
+}
+
+// ─── Feature 7: Row Transform Code Generator ─────────────────────────────────
+// Natural language → JavaScript row transform function
+// e.g. "14~16번 줄 unit2를 unit1으로 옮겨줘"
+export async function generateRowTransform(userMessage, columns, sampleRows) {
+  const system = `You are a data transformation code generator for a fashion ERP system.
+The user will describe a data transformation in natural language.
+You must return ONLY a valid JavaScript arrow function that transforms a single row.
+
+Function signature: (row, index) => newRow
+- row: object with column keys
+- index: 0-based row index
+- return: transformed row object (always return the full row)
+
+Rules:
+- Always spread the original row: { ...row, ... }
+- Use 0-based index for row number checks (row 1 = index 0)
+- For sequential values, use index to calculate
+- Never use external libraries
+- Return ONLY the arrow function code, no explanation, no markdown`
+
+  const user = `User request: "${userMessage}"
+
+Available columns: ${JSON.stringify(columns)}
+
+Sample data (first 3 rows):
+${sampleRows.slice(0,3).map((r,i) => `Row ${i+1}: ${JSON.stringify(r)}`).join('
+')}
+
+Return ONLY the JavaScript arrow function. Example format:
+(row, index) => {
+  if (index >= 13 && index <= 15) {
+    return { ...row, unit1: row.unit2, unit2: row.unit3 }
+  }
+  return row
+}`
+
+  const text = await callClaude(system, user, 1000)
+  // Extract function from response
+  const cleaned = text.replace(/\`\`\`javascript|\`\`\`js|\`\`\`/g, '').trim()
+  // Validate it starts with arrow function
+  if (!cleaned.includes('=>')) throw new Error('Invalid function generated')
+  return cleaned
 }
