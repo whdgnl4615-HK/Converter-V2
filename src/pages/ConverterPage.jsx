@@ -221,8 +221,8 @@ export default function ConverterPage({ module: moduleKey }) {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 flex-shrink-0"
-        className="topbar" style={{position:'sticky',top:0,zIndex:20}}>
+      <div className="topbar flex items-center justify-between px-6 py-3 flex-shrink-0"
+        style={{position:'sticky',top:0,zIndex:20}}>
         <div className="flex items-center gap-3">
           <span className="text-xl">{moduleMeta?.icon}</span>
           <div>
@@ -356,12 +356,10 @@ export default function ConverterPage({ module: moduleKey }) {
               />
               <div className="flex justify-between mt-4">
                 <button onClick={() => setStep(1)}
-                  className="px-4 py-2 rounded-lg text-sm mono transition-all"
                   className="btn-secondary">
                   {T.converter.back}
                 </button>
                 <button onClick={() => setStep(3)}
-                  className="px-4 py-2 rounded-lg text-sm mono font-bold transition-all"
                   className="btn-primary">
                   {T.converter.next}
                 </button>
@@ -443,12 +441,10 @@ export default function ConverterPage({ module: moduleKey }) {
                       }}>{convertMsg}</span>
                     )}
                     <button onClick={() => setStep(2)}
-                      className="px-3 py-1.5 rounded-lg text-sm mono transition-all"
                       className="btn-secondary">
                       {T.converter.back}
                     </button>
                     <button onClick={handleConvert} disabled={converting}
-                      className="px-5 py-1.5 rounded-lg text-sm mono font-bold transition-all"
                       className="btn-primary" style={{background:'var(--green)',opacity:converting?0.6:1}}>
                       {converting ? T.converter.converting : T.converter.convert}
                     </button>
