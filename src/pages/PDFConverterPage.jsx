@@ -8,7 +8,7 @@ import { CLOUD_COL_MAP } from '../lib/n41Schema'
 const SO_COLS = Object.keys(CLOUD_COL_MAP.sales_order)
 
 const FIXED_FIELDS = [
-  { key: 'customer',  label: '고객 코드',   placeholder: 'e.g. UO001' },
+  { key: 'customer',  label: T.converter.customerCode,   placeholder: 'e.g. UO001' },
   { key: 'division',  label: 'Division',    placeholder: 'e.g. WOMEN' },
   { key: 'warehouse', label: 'Warehouse',   placeholder: 'e.g. LA' },
   { key: 'type',      label: 'Order Type',  placeholder: 'e.g. REGULAR' },
@@ -20,7 +20,7 @@ const EDITABLE_COLS = ['customer','division','warehouse','type','status','season
 const DISPLAY_COLS  = ['orderNo','po','orderDate','startDate','cancelDate','style','color','size','quantity','price','currency','shipVia','term','customer','division','warehouse','status','season']
 
 export default function PDFConverterPage() {
-  const { lang } = useLang()
+  const { T, lang } = useLang()
   const { templates, fetchTemplates, saveTemplate, deleteTemplate, setDefault, getDefaultTemplate } = useTemplates('pdf_so')
 
   const [step, setStep]         = useState(1)
@@ -61,18 +61,18 @@ export default function PDFConverterPage() {
       setFixedVals(prev => ({ ...prev, ...tpl.mapping }))
     }
     setActiveTemplate(tpl.name)
-    if (showMsg) setTplMsg(`✅ "${tpl.name}" 적용됨`)
+    if (showMsg) setTplMsg(`✅ ${T.converter.tplApplied.replace('{n}',tpl.name)}`)
     setTimeout(() => setTplMsg(''), 2000)
   }
 
   async function handleSaveTemplate() {
-    if (!newTplName.trim()) { setTplMsg('이름을 입력하세요'); return }
+    if (!newTplName.trim()) { setTplMsg(T.converter.tplNameRequired); return }
     setSavingTpl(true)
     try {
       await saveTemplate(newTplName.trim(), fixedVals)
       setActiveTemplate(newTplName.trim())
       setNewTplName('')
-      setTplMsg(`✅ "${newTplName.trim()}" 저장 완료`)
+      setTplMsg(`✅ ${T.converter.tplSaved.replace('{n}',newTplName.trim())}`)
     } catch (e) {
       setTplMsg('❌ ' + e.message)
     } finally {
@@ -82,11 +82,11 @@ export default function PDFConverterPage() {
   }
 
   async function handleDeleteTemplate(id, name) {
-    if (!confirm(`"${name}" 삭제할까요?`)) return
+    if (!confirm(T.converter.tplDeleteConfirm.replace('{n}',name))) return
     try {
       await deleteTemplate(id)
       if (activeTemplate === name) setActiveTemplate('')
-      setTplMsg('삭제됨')
+      setTplMsg(T.converter.tplDeleted)
       setTimeout(() => setTplMsg(''), 1500)
     } catch (e) { setTplMsg('❌ ' + e.message) }
   }
@@ -94,14 +94,14 @@ export default function PDFConverterPage() {
   async function handleSetDefault(id) {
     try {
       await setDefault(id)
-      setTplMsg('✅ 기본값 설정됨')
+      setTplMsg(T.converter.tplDefaultSet)
       setTimeout(() => setTplMsg(''), 1500)
     } catch (e) { setTplMsg('❌ ' + e.message) }
   }
 
   // PDF 업로드 & 파싱
   async function handleFile(file) {
-    if (!file.name.match(/\.pdf$/i)) { setParseErr('PDF 파일만 지원합니다.'); return }
+    if (!file.name.match(/\.pdf$/i)) { setParseErr(T.converter.pdfOnly); return }
     setParseErr(''); setFileName(file.name); setParsing(true); setParsed(null); setEditRows([])
     try {
       const result = await parsePOPdf(file)
@@ -115,7 +115,7 @@ export default function PDFConverterPage() {
       setEditRows(withFixed)
       setStep(2)
     } catch (e) {
-      setParseErr('PDF 파싱 실패: ' + e.message)
+      setParseErr(T.converter.pdfParseErr + ': ' + e.message)
     } finally { setParsing(false) }
   }
 
@@ -125,7 +125,7 @@ export default function PDFConverterPage() {
       ...r,
       ...Object.fromEntries(Object.entries(fixedVals).filter(([, v]) => v !== ''))
     })))
-    setMsg('✅ 적용됨')
+    setMsg(T.converter.fixedApplied)
     setTimeout(() => setMsg(''), 1500)
   }
 
@@ -139,7 +139,7 @@ export default function PDFConverterPage() {
       const mapping = {}
       SO_COLS.forEach(col => { mapping[col] = { src: col, tf: '', fixedVal: '' } })
       downloadXlsx(editRows, mapping, 'sales_order')
-      setMsg('✅ 다운로드 완료!')
+      setMsg(lang==='ko'?'✅ 다운로드 완료!':'✅ Download complete!')
       setStep(3)
     } catch (e) { setMsg('❌ ' + e.message) }
     finally { setDownloading(false) }
@@ -167,7 +167,7 @@ export default function PDFConverterPage() {
         </div>
         {/* Step pills */}
         <div className="flex gap-1">
-          {[[1,'① PDF 업로드'],[2,'② 데이터 확인'],[3,'③ 완료']].map(([n,label]) => (
+          {[[1,lang==='ko'?'① PDF 업로드':'① Upload PDF'],[2,lang==='ko'?'② 데이터 확인':'② Review Data'],[3,lang==='ko'?'③ 완료':'③ Done']].map(([n,label]) => (
             <div key={n} className="px-3 py-1 rounded-full text-xs mono"
               style={{
                 background: step===n ? 'var(--accent-glow)' : step>n ? 'rgba(22,163,74,0.08)' : 'transparent',
@@ -185,13 +185,13 @@ export default function PDFConverterPage() {
               color: showTemplates ? 'var(--accent)' : 'var(--text2)',
               border: `1px solid ${showTemplates ? 'var(--accent)' : 'var(--border2)'}`,
             }}>
-            📋 템플릿
+            {lang==='ko'?'📋 템플릿':'📋 Templates'}
           </button>
           {step === 2 && (
             <button onClick={handleDownload} disabled={downloading}
               className="px-5 py-2 rounded-lg text-sm mono font-bold"
               style={{ background:'var(--green)', color:'white', opacity:downloading?0.7:1 }}>
-              {downloading ? '생성 중…' : '⬇ N41 SO 다운로드'}
+              {downloading ? lang==='ko'?'생성 중…':'Generating…' : lang==='ko'?'⬇ N41 SO 다운로드':'⬇ Download N41 SO'}
             </button>
           )}
         </div>
@@ -205,7 +205,7 @@ export default function PDFConverterPage() {
           {/* Upload zone */}
           <div>
             <div className="text-xs mono uppercase mb-2" style={{ color:'var(--text3)', letterSpacing:'1.5px' }}>
-              PDF 발주서
+              {lang==='ko'?'PDF 발주서':'PDF Purchase Order'}
             </div>
             <div
               onClick={() => inputRef.current?.click()}
@@ -223,18 +223,18 @@ export default function PDFConverterPage() {
               {parsing ? (
                 <>
                   <div className="text-2xl mb-1" style={{ display:'inline-block', animation:'spin 1s linear infinite' }}>⟳</div>
-                  <div className="text-xs mono" style={{ color:'var(--accent)' }}>AI 분석 중…</div>
+                  <div className="text-xs mono" style={{ color:'var(--accent)' }}>{lang==='ko'?'AI 분석 중…':'Analyzing…'}</div>
                 </>
               ) : fileName ? (
                 <>
                   <div className="text-xl mb-1">✅</div>
                   <div className="text-xs mono font-bold truncate" style={{ color:'var(--accent)', maxWidth:180 }}>{fileName}</div>
-                  <div className="text-xs mt-0.5" style={{ color:'var(--text3)' }}>클릭해서 교체</div>
+                  <div className="text-xs mt-0.5" style={{ color:'var(--text3)' }}>{lang==='ko'?'클릭해서 교체':'Click to replace'}</div>
                 </>
               ) : (
                 <>
                   <div className="text-2xl mb-1">📄</div>
-                  <div className="text-xs font-bold" style={{ color:'var(--accent)' }}>PDF 업로드</div>
+                  <div className="text-xs font-bold" style={{ color:'var(--accent)' }}>{lang==='ko'?'PDF 업로드':'Upload PDF'}</div>
                   <div className="text-xs mt-0.5" style={{ color:'var(--text3)' }}>드래그 또는 클릭</div>
                 </>
               )}
