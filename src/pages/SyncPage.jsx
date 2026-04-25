@@ -904,7 +904,7 @@ export default function SyncPage() {
               <div className="text-sm mono">
                 {!n41Map ? 'N41 파일을 먼저 업로드하세요' :
                  !platRows ? `${plat.label} 파일을 업로드하세요` :
-                 {(lang==='ko' ? '비교 실행 버튼을 눌러주세요' : 'Click Run to compare')}}
+                 (lang==='ko' ? '비교 실행 버튼을 눌러주세요' : 'Click Run to compare')}
               </div>
             </div>
           ) : (
