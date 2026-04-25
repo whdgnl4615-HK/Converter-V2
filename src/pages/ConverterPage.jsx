@@ -139,7 +139,7 @@ export default function ConverterPage({ module: moduleKey }) {
       setCleanseResults(results)
       setShowCleansePanel(true)
       const high = results.filter(r => r.priority === 'high').length
-      setAiCleanseMsg(`✨ ${results.length}개 제안 (${high}개 중요)`)
+      setAiCleanseMsg(`✨ ${T.converter.aiSuggestCount.replace('{n}',results.length).replace('{h}',high)}`)
     } catch (e) {
       setAiCleanseMsg('❌ ' + e.message)
     } finally {
@@ -177,7 +177,7 @@ export default function ConverterPage({ module: moduleKey }) {
       const sampleRow = evdData[0] || {}
       const results = await processCleanseCommand(aiChatInput, mapping, sourceColumns, sampleRow)
       if (!results.length) {
-        setAiChatMsg('❌ 해당하는 컬럼을 찾지 못했어요')
+        setAiChatMsg(T.converter.aiColNotFound)
         return
       }
       // Apply results
@@ -189,7 +189,7 @@ export default function ConverterPage({ module: moduleKey }) {
       }
       setMapping(newMapping)
       if (step === 3) rebuildPreview(newMapping)
-      setAiChatMsg(`✅ ${results.length}개 컬럼에 적용: ${results.map(r => r.n41Col).join(', ')}`)
+      setAiChatMsg(`✅ ${T.converter.aiColApplied.replace('{n}',results.length)}: ${results.map(r=>r.n41Col).join(', ')}`)
       setAiChatInput('')
     } catch (e) {
       setAiChatMsg('❌ ' + e.message)
@@ -213,9 +213,9 @@ export default function ConverterPage({ module: moduleKey }) {
   })()
 
   const PRIORITY_COLOR = {
-    high:   { color: 'var(--red)',    bg: 'rgba(220,38,38,0.08)',  label: '🔴 중요' },
-    medium: { color: 'var(--orange)', bg: 'rgba(217,119,6,0.10)',   label: '🟡 보통' },
-    low:    { color: 'var(--text3)',  bg: 'rgba(255,255,255,0.03)', label: '⚪ 낮음' },
+    high:   { color: 'var(--red)',    bg: 'rgba(220,38,38,0.08)',  label: T.converter.priorityHigh },
+    medium: { color: 'var(--orange)', bg: 'rgba(217,119,6,0.10)',   label: T.converter.priorityMedium },
+    low:    { color: 'var(--text3)',  bg: 'rgba(255,255,255,0.03)', label: T.converter.priorityLow },
   }
 
   return (
@@ -278,13 +278,13 @@ export default function ConverterPage({ module: moduleKey }) {
               {/* Desktop / Cloud 선택 */}
               <div className="flex gap-3 mb-5">
                 {[
-                  { key: 'desktop', label: 'Desktop', icon: '🖥️', desc: 'N41 Desktop Import 템플릿' },
-                  { key: 'cloud',   label: 'Cloud',   icon: '☁️', desc: 'N41 Cloud Import 템플릿' },
+                  { key: 'desktop', label: 'Desktop', icon: '🖥️', desc: T.converter.desktopDesc },
+                  { key: 'cloud',   label: 'Cloud',   icon: '☁️', desc: T.converter.cloudDesc },
                 ].map(v => (
                   <button key={v.key} onClick={() => {
                     setN41Version(v.key)
                     setMapping(v.key === 'desktop' ? buildDesktopMapping(moduleKey) : buildCloudMapping(moduleKey))
-                    setActiveTemplateName(v.key === 'desktop' ? '[Desktop] 기본 매핑' : '')
+                    setActiveTemplateName(v.key === 'desktop' ? lang==='ko'?'[Desktop] 기본 매핑':'[Desktop] Default' : '')
                   }}
                     className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left"
                     style={{
@@ -439,7 +439,7 @@ export default function ConverterPage({ module: moduleKey }) {
                   <div className="flex items-center gap-3">
                     {convertMsg && (
                       <span className="text-xs mono" style={{
-                        color: convertMsg.includes('오류') || convertMsg.includes('Error') ? 'var(--red)' : 'var(--green)'
+                        color: convertMsg.includes(T.converter.convErrKo) || convertMsg.includes('Error') || convertMsg.includes('Error') ? 'var(--red)' : 'var(--green)'
                       }}>{convertMsg}</span>
                     )}
                     <button onClick={() => setStep(2)}
@@ -505,7 +505,7 @@ export default function ConverterPage({ module: moduleKey }) {
                               <button onClick={() => applyOneCleanse(r.n41Col, r.suggested_tf)}
                                 className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs mono font-bold"
                                 style={{background:'var(--accent-glow)',border:'1px solid var(--accent)',color:'var(--accent)'}}>
-                                적용
+                                {T.converter.apply}
                               </button>
                             )}
                           </div>
