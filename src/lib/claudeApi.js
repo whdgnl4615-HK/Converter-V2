@@ -515,8 +515,7 @@ Rules:
 Available columns: ${JSON.stringify(columns)}
 
 Sample data (first 3 rows):
-${sampleRows.slice(0,3).map((r,i) => `Row ${i+1}: ${JSON.stringify(r)}`).join('
-')}
+${sampleRows.slice(0,3).map((r,i) => `Row ${i+1}: ${JSON.stringify(r)}`).join('\n')}
 
 Return ONLY the JavaScript arrow function. Example format:
 (row, index) => {
