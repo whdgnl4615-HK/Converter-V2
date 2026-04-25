@@ -24,12 +24,15 @@ export default function AuthPage() {
     setLoading(true)
     try {
       if (mode === 'login') {
+        console.log('calling signIn...')
         await signIn(email, password)
+        console.log('signIn success')
       } else {
         await signUp(email, password, fullName)
         setDone(true)
       }
     } catch (e) {
+      console.log('signIn error:', e.message)
       setErr(e.message || 'Something went wrong')
     } finally {
       setLoading(false)
