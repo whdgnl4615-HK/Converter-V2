@@ -44,9 +44,8 @@ export default function AdminPage() {
   // ── User role ──
   async function updateRole(id, role) {
     try {
-      const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
+      const { error } = await supabase.rpc('admin_update_user_role', { target_user_id: id, new_role: role })
       if (error) throw error
-      // Mark related notifications as read
       const notif = notifications.find(n => n.payload?.user_id === id)
       if (notif) await markNotificationRead(notif.id)
       fetchAll()
