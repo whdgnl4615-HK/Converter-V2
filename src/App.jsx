@@ -18,6 +18,18 @@ function RequireAuth({ children }) {
   if (!user) return <Navigate to="/login" replace />
   if (profile?.role === 'pending') return <Navigate to="/pending" replace />
   if (profile?.role === 'rejected') return <Navigate to="/login" replace />
+  // profile null이어도 user 있으면 일단 통과 (profile 로딩 실패 대비)
+  return children
+}
+
+function RedirectIfAuth({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+      <div style={{ color: 'var(--text3)', fontSize: 13 }}>Loading…</div>
+    </div>
+  )
+  if (user) return <Navigate to="/" replace />
   return children
 }
 
@@ -30,7 +42,7 @@ function RequireAdmin({ children }) {
 export default function App() {
   return (
     <Routes>
-      <Route path="/login"   element={<AuthPage />} />
+      <Route path="/login"   element={<RedirectIfAuth><AuthPage /></RedirectIfAuth>} />
       <Route path="/pending" element={<PendingPage />} />
 
       <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
