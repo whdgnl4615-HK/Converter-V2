@@ -8,12 +8,12 @@ import { CLOUD_COL_MAP } from '../lib/n41Schema'
 const SO_COLS = Object.keys(CLOUD_COL_MAP.sales_order)
 
 const FIXED_FIELDS = [
-  { key: 'customer',  label: T.converter.customerCode,   placeholder: 'e.g. UO001' },
-  { key: 'division',  label: 'Division',    placeholder: 'e.g. WOMEN' },
-  { key: 'warehouse', label: 'Warehouse',   placeholder: 'e.g. LA' },
-  { key: 'type',      label: 'Order Type',  placeholder: 'e.g. REGULAR' },
-  { key: 'status',    label: 'Status',      placeholder: 'e.g. N' },
-  { key: 'season',    label: 'Season',      placeholder: 'e.g. SS2026' },
+  { key: 'customer',  labelKo: '고객 코드',  labelEn: 'Customer Code', placeholder: 'e.g. UO001' },
+  { key: 'division',  labelKo: 'Division',   labelEn: 'Division',      placeholder: 'e.g. WOMEN' },
+  { key: 'warehouse', labelKo: 'Warehouse',  labelEn: 'Warehouse',     placeholder: 'e.g. LA' },
+  { key: 'type',      labelKo: 'Order Type', labelEn: 'Order Type',    placeholder: 'e.g. REGULAR' },
+  { key: 'status',    labelKo: 'Status',     labelEn: 'Status',        placeholder: 'e.g. N' },
+  { key: 'season',    labelKo: 'Season',     labelEn: 'Season',        placeholder: 'e.g. SS2026' },
 ]
 
 const EDITABLE_COLS = ['customer','division','warehouse','type','status','season','shipVia','term','currency','style','color','size','quantity','price']
@@ -275,10 +275,10 @@ export default function PDFConverterPage() {
             <div className="text-xs mono uppercase mb-2" style={{ color:'var(--text3)', letterSpacing:'1px' }}>
               고정값 설정
             </div>
-            {FIXED_FIELDS.map(({ key, label, placeholder }) => (
+            {FIXED_FIELDS.map(({ key, labelKo, labelEn, placeholder }) => (
               <div key={key} className="mb-2">
                 <div className="text-xs mb-0.5 flex items-center justify-between">
-                  <span style={{ color:'var(--text3)' }}>{label}</span>
+                  <span style={{ color:'var(--text3)' }}>{lang === 'ko' ? labelKo : labelEn}</span>
                   {fixedVals[key] && (
                     <span className="text-xs mono px-1 rounded" style={{ background:'var(--accent-light)', color:'var(--accent)' }}>
                       설정됨
