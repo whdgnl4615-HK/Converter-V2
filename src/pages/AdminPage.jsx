@@ -19,9 +19,10 @@ export default function AdminPage() {
   const [savingBrand, setSavingBrand] = useState(false)
 
   // User → Brand assignment
-  const [assigningUser, setAssigningUser] = useState(null) // user id
+  const [assigningUser, setAssigningUser] = useState(null)
   const [assignBrandId, setAssignBrandId] = useState('')
   const [assignBrandRole, setAssignBrandRole] = useState('member')
+  const [pendingBrandId, setPendingBrandId] = useState({}) // userId → brandId
 
   useEffect(() => { fetchAll() }, [])
 
@@ -53,15 +54,35 @@ export default function AdminPage() {
     } catch (e) { showMsg('err', e.message) }
   }
 
+  // ── Approve user (with optional brand) ──
+  async function approveUser(userId) {
+    try {
+      await supabase.rpc('admin_update_user_role', { target_user_id: userId, new_role: 'user' })
+      // brand 선택했으면 같이 assign
+      const brandId = pendingBrandId[userId]
+      if (brandId) {
+        await supabase.rpc('admin_assign_brand', {
+          target_user_id: userId,
+          target_brand_id: brandId,
+          member_role: 'member',
+        })
+      }
+      const notif = notifications.find(n => n.payload?.user_id === userId)
+      if (notif) await markNotificationRead(notif.id)
+      setPendingBrandId(prev => { const n = {...prev}; delete n[userId]; return n })
+      fetchAll()
+      showMsg('ok', 'User approved' + (brandId ? ' & assigned to brand' : ''))
+    } catch (e) { showMsg('err', e.message) }
+  }
+
   // ── Brand CRUD ──
   async function createBrand() {
     if (!brandName.trim() || !brandSlug.trim()) { showMsg('err', 'Name and slug required'); return }
     setSavingBrand(true)
     try {
-      const { error } = await supabase.from('brands').insert({
-        name: brandName.trim(),
-        slug: brandSlug.trim().toLowerCase().replace(/\s+/g, '-'),
-        created_by: user.id,
+      const { error } = await supabase.rpc('admin_create_brand', {
+        brand_name: brandName.trim(),
+        brand_slug: brandSlug.trim().toLowerCase().replace(/\s+/g, '-'),
       })
       if (error) throw error
       setBrandName(''); setBrandSlug('')
@@ -74,7 +95,7 @@ export default function AdminPage() {
   async function deleteBrand(id, name) {
     if (!confirm(`Delete brand "${name}"? All members will be unassigned.`)) return
     try {
-      const { error } = await supabase.from('brands').delete().eq('id', id)
+      const { error } = await supabase.rpc('admin_delete_brand', { brand_id: id })
       if (error) throw error
       fetchAll()
       showMsg('ok', `Brand "${name}" deleted`)
@@ -85,18 +106,12 @@ export default function AdminPage() {
   async function assignToBrand(userId) {
     if (!assignBrandId) { showMsg('err', 'Select a brand'); return }
     try {
-      // Update profile brand_id
-      await supabase.from('profiles').update({
-        brand_id: assignBrandId,
-        brand_role: assignBrandRole,
-      }).eq('id', userId)
-
-      // Upsert brand_members
-      await supabase.from('brand_members').upsert({
-        brand_id: assignBrandId,
-        user_id: userId,
-        role: assignBrandRole,
-      }, { onConflict: 'brand_id,user_id' })
+      const { error: assignErr } = await supabase.rpc('admin_assign_brand', {
+        target_user_id: userId,
+        target_brand_id: assignBrandId,
+        member_role: assignBrandRole,
+      })
+      if (assignErr) throw assignErr
 
       setAssigningUser(null); setAssignBrandId(''); setAssignBrandRole('member')
       fetchAll()
@@ -107,11 +122,12 @@ export default function AdminPage() {
   async function removeFromBrand(userId) {
     try {
       const userProfile = users.find(u => u.id === userId)
-      if (userProfile?.brand_id) {
-        await supabase.from('brand_members').delete()
-          .eq('user_id', userId).eq('brand_id', userProfile.brand_id)
-      }
-      await supabase.from('profiles').update({ brand_id: null, brand_role: 'member' }).eq('id', userId)
+      if (!userProfile?.brand_id) return
+      const { error: removeErr } = await supabase.rpc('admin_remove_brand', {
+        target_user_id: userId,
+        target_brand_id: userProfile.brand_id,
+      })
+      if (removeErr) throw removeErr
       fetchAll()
       showMsg('ok', 'Removed from brand')
     } catch (e) { showMsg('err', e.message) }
@@ -280,8 +296,15 @@ export default function AdminPage() {
                       {new Date(u.created_at).toLocaleDateString()}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => updateRole(u.id, 'user')}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={pendingBrandId[u.id] || ''}
+                      onChange={e => setPendingBrandId(prev => ({...prev, [u.id]: e.target.value}))}
+                      className="input-base text-xs" style={{ padding: '4px 8px', minWidth: 120 }}>
+                      <option value="">No brand</option>
+                      {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                    <button onClick={() => approveUser(u.id)}
                       className="btn-secondary text-xs px-3 py-1.5"
                       style={{ borderColor: 'var(--green-border)', color: 'var(--green)', background: 'var(--green-bg)' }}>
                       ✓ {T.admin.approve}
@@ -381,7 +404,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={() => { updateRole(n.payload?.user_id, 'user'); markNotificationRead(n.id) }}
+                      <button onClick={() => approveUser(n.payload?.user_id)}
                         className="btn-secondary text-xs px-2.5 py-1"
                         style={{ borderColor: 'var(--green-border)', color: 'var(--green)', background: 'var(--green-bg)' }}>
                         Approve
