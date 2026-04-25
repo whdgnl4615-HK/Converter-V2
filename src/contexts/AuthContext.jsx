@@ -10,13 +10,20 @@ export function AuthProvider({ children }) {
   const [notifications, setNotifications] = useState([])
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('*, brands(*)')
+      .select('*')
       .eq('id', userId)
       .single()
-    setProfile(data)
-    return data
+    if (error) { console.warn('fetchProfile error:', error.message); return null }
+    let profileData = data
+    if (data?.brand_id) {
+      const { data: brand } = await supabase
+        .from('brands').select('*').eq('id', data.brand_id).single()
+      profileData = { ...data, brands: brand }
+    }
+    setProfile(profileData)
+    return profileData
   }
 
   async function fetchNotifications(userId) {
