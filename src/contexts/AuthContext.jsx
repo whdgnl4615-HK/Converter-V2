@@ -21,37 +21,38 @@ export function AuthProvider({ children }) {
   }
 
   async function fetchNotifications(userId) {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('notifications')
       .select('*')
       .eq('to_user_id', userId)
       .eq('read', false)
       .order('created_at', { ascending: false })
-    if (!error) setNotifications(data || [])
+    setNotifications(data || [])
   }
 
   useEffect(() => {
-    // onAuthStateChange만 사용 - getSession 중복 제거
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('auth event:', event)
-
-        if (session?.user) {
-          setUser(session.user)
-          // setTimeout으로 Supabase 내부 상태 정리 후 fetch
-          setTimeout(async () => {
-            await fetchProfile(session.user.id)
-            await fetchNotifications(session.user.id)
-            setLoading(false)
-          }, 0)
-        } else {
-          setUser(null)
-          setProfile(null)
-          setNotifications([])
-          setLoading(false)
-        }
+    // 1. 초기 세션 체크 → loading 제어는 여기서만
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        fetchProfile(session.user.id).finally(() => setLoading(false))
+        fetchNotifications(session.user.id)
+      } else {
+        setLoading(false)
       }
-    )
+    })
+
+    // 2. 이후 변경사항 감지 → loading 건드리지 않음
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        fetchProfile(session.user.id)
+        fetchNotifications(session.user.id)
+      } else {
+        setProfile(null)
+        setNotifications([])
+      }
+    })
 
     return () => subscription.unsubscribe()
   }, []) // eslint-disable-line
