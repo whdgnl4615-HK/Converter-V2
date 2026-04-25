@@ -160,28 +160,27 @@ export default function Layout() {
         {/* Footer */}
         <div className="px-3 py-3 flex flex-col gap-2" style={{ borderTop: '1px solid var(--border)' }}>
           {/* User info + logout */}
-          {profile && (
-            <div className="flex items-center gap-2 px-1">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 11, fontWeight: 600 }}>
-                {(profile.full_name || profile.email || '?')[0].toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate" style={{ color: 'var(--text2)' }}>
-                  {profile.full_name || profile.email?.split('@')[0]}
-                </div>
-                <div className="truncate" style={{ color: 'var(--text4)', fontSize: 10 }}>
-                  {profile.email}
-                </div>
-              </div>
-              <button onClick={handleLogout} title="Sign out"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text4)', fontSize: 14, padding: '2px 4px', borderRadius: 4 }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text4)'}>
-                ↪
-              </button>
+          <div className="flex items-center gap-2 px-1">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 11, fontWeight: 600 }}>
+              {(profile?.full_name || profile?.email || '?')[0].toUpperCase()}
             </div>
-          )}
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium truncate" style={{ color: 'var(--text2)' }}>
+                {profile?.full_name || profile?.email?.split('@')[0] || 'User'}
+              </div>
+              <div className="truncate" style={{ color: 'var(--text4)', fontSize: 10 }}>
+                {profile?.email || ''}
+              </div>
+            </div>
+            <button onClick={handleLogout} title="Sign out"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all"
+              style={{ background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text3)', cursor: 'pointer', flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--red)'; e.currentTarget.style.color = 'var(--red)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)' }}>
+              Sign out
+            </button>
+          </div>
           {/* Lang toggle */}
           <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--s2)' }}>
             {['ko', 'en'].map(l => (
