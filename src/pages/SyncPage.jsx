@@ -412,7 +412,7 @@ async function exportFixed(platform, rows, results, fileName) {
     }
   }
 
-  const updatedRows = rows.map((row, i) => {
+  let updatedRows = rows.map((row, i) => {
     const res = results.find(r => r._row === row)
     if (!res || !res.accepted || res.diffs.length === 0) return row
 
