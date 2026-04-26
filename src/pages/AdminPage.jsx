@@ -29,7 +29,7 @@ export default function AdminPage() {
   async function fetchAll() {
     setLoading(true)
     const [{ data: profiles }, { data: brandList }] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.rpc('get_all_profiles'),
       supabase.from('brands').select('*').order('name'),
     ])
     // attach brand info to profiles
