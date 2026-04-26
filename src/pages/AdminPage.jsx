@@ -29,10 +29,16 @@ export default function AdminPage() {
   async function fetchAll() {
     setLoading(true)
     const [{ data: profiles }, { data: brandList }] = await Promise.all([
-      supabase.from('profiles').select('*, brands(*)').order('created_at', { ascending: false }),
-      supabase.from('brands').select('*, brand_members(count)').order('name'),
+      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.from('brands').select('*').order('name'),
     ])
-    setUsers(profiles || [])
+    // attach brand info to profiles
+    const brandsById = Object.fromEntries((brandList || []).map(b => [b.id, b]))
+    const profilesWithBrand = (profiles || []).map(p => ({
+      ...p,
+      brands: p.brand_id ? brandsById[p.brand_id] : null
+    }))
+    setUsers(profilesWithBrand)
     setBrands(brandList || [])
     setLoading(false)
   }
@@ -145,7 +151,7 @@ export default function AdminPage() {
   }
 
   const TABS = [
-    { key: 'users',       label: `Users (${active.length})` },
+    { key: 'users',       label: `All Users (${users.length})` },
     { key: 'pending',     label: `Pending (${pending.length})`, badge: pending.length },
     { key: 'brands',      label: `Brands (${brands.length})` },
     { key: 'notifications', label: `Notifications`, badge: notifications.length },
@@ -193,16 +199,16 @@ export default function AdminPage() {
         <div className="text-sm" style={{ color: 'var(--text3)' }}>Loading…</div>
       ) : (
         <>
-          {/* ── Active Users ── */}
+          {/* ── All Users ── */}
           {tab === 'users' && (
             <div className="card rounded-xl overflow-hidden">
-              {active.length === 0 ? (
+              {users.length === 0 ? (
                 <div className="p-6 text-center text-sm" style={{ color: 'var(--text3)' }}>No users</div>
-              ) : active.map((u, i) => {
+              ) : users.map((u, i) => {
                 const badge = ROLE_BADGE[u.role] || ROLE_BADGE.user
                 const isAssigning = assigningUser === u.id
                 return (
-                  <div key={u.id} style={{ borderBottom: i < active.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  <div key={u.id} style={{ borderBottom: i < users.length - 1 ? '1px solid var(--border)' : 'none' }}>
                     <div className="flex items-center gap-3 px-4 py-3">
                       {/* Avatar */}
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
